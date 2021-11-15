@@ -1,0 +1,2 @@
+# labcon
+Laboratory equipment controller
