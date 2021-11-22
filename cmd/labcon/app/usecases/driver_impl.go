@@ -63,9 +63,7 @@ func (usecase DriverUsecaseImpl) SetStatus(name string, status driver.Status) er
 		return err
 	}
 	model.Status = status
-	if status == driver.Idle {
-		model.Op = nil
-	}
+	model.Op = nil
 	return usecase.repository.Update(model)
 }
 
