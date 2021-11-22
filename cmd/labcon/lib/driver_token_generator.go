@@ -3,8 +3,6 @@ package lib
 import (
 	"context"
 	"net/http"
-
-	"github.com/ktnyt/labcon/cmd/labcon/utils"
 )
 
 const DriverTokenGeneratorContextKey AppContextKey = "driver_token_generator"
@@ -12,7 +10,7 @@ const DriverTokenGeneratorContextKey AppContextKey = "driver_token_generator"
 type TokenGenerator func() string
 
 func DefaultTokenGenerator() string {
-	return Base32String(utils.NewToken(20))
+	return Base32String(NewToken(20))
 }
 
 func WithDriverTokenGenerator(ctx context.Context, gen TokenGenerator) context.Context {

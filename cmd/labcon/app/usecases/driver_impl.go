@@ -1,9 +1,9 @@
 package usecases
 
 import (
-	"github.com/ktnyt/labcon/cmd/labcon/app/models"
 	"github.com/ktnyt/labcon/cmd/labcon/app/repositories"
 	"github.com/ktnyt/labcon/cmd/labcon/lib"
+	"github.com/ktnyt/labcon/driver"
 )
 
 type DriverUsecaseImpl struct {
@@ -49,27 +49,27 @@ func (usecase DriverUsecaseImpl) SetState(name string, state interface{}) error 
 	return usecase.repository.Update(model)
 }
 
-func (usecase DriverUsecaseImpl) GetStatus(name string) (models.DriverStatus, error) {
+func (usecase DriverUsecaseImpl) GetStatus(name string) (driver.Status, error) {
 	model, err := usecase.repository.Fetch(name)
 	if err != nil {
-		return models.DriverError, err
+		return driver.Error, err
 	}
 	return model.Status, nil
 }
 
-func (usecase DriverUsecaseImpl) SetStatus(name string, status models.DriverStatus) error {
+func (usecase DriverUsecaseImpl) SetStatus(name string, status driver.Status) error {
 	model, err := usecase.repository.Fetch(name)
 	if err != nil {
 		return err
 	}
 	model.Status = status
-	if status == models.DriverIdle {
+	if status == driver.Idle {
 		model.Op = nil
 	}
 	return usecase.repository.Update(model)
 }
 
-func (usecase DriverUsecaseImpl) GetOp(name string) (*models.DriverOp, error) {
+func (usecase DriverUsecaseImpl) GetOp(name string) (*driver.Op, error) {
 	model, err := usecase.repository.Fetch(name)
 	if err != nil {
 		return nil, err
@@ -77,12 +77,15 @@ func (usecase DriverUsecaseImpl) GetOp(name string) (*models.DriverOp, error) {
 	return model.Op, nil
 }
 
-func (usecase DriverUsecaseImpl) SetOp(name string, op models.DriverOp) error {
+func (usecase DriverUsecaseImpl) SetOp(name string, op driver.Op) error {
 	model, err := usecase.repository.Fetch(name)
 	if err != nil {
 		return err
 	}
-	model.Status = models.DriverBusy
+	if model.Status != driver.Idle || model.Op != nil {
+		return lib.ErrAlreadyExists
+	}
+	model.Status = driver.Busy
 	model.Op = &op
 	return usecase.repository.Update(model)
 }

@@ -13,10 +13,10 @@ import (
 	"github.com/dgraph-io/badger/v3"
 	"github.com/go-chi/chi/v5"
 	"github.com/ktnyt/labcon/cmd/labcon/app"
-	"github.com/ktnyt/labcon/cmd/labcon/app/controllers"
 	"github.com/ktnyt/labcon/cmd/labcon/app/injectors"
-	"github.com/ktnyt/labcon/cmd/labcon/app/models"
 	"github.com/ktnyt/labcon/cmd/labcon/lib"
+	"github.com/ktnyt/labcon/driver"
+	"github.com/ktnyt/labcon/utils"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -75,7 +75,7 @@ func TestIntegration(t *testing.T) {
 
 		{
 			setup: func() *http.Request {
-				req := newRequest(t, http.MethodPost, "/driver", lib.JsonMarshalToBuffer(t, controllers.RegisterRequest{
+				req := newRequest(t, http.MethodPost, "/driver", lib.MustJsonMarshalToBuffer(t, driver.RegisterParams{
 					Name:  "foo",
 					State: "foo",
 				}))
@@ -91,7 +91,7 @@ func TestIntegration(t *testing.T) {
 				return newRequest(t, http.MethodGet, "/driver/foo/state", nil)
 			},
 			code: http.StatusOK,
-			out:  lib.JsonMarshalToBuffer(t, "foo"),
+			out:  lib.MustJsonMarshalToBuffer(t, "foo"),
 		},
 
 		{
@@ -99,7 +99,7 @@ func TestIntegration(t *testing.T) {
 				return newRequest(t, http.MethodGet, "/driver/foo/status", nil)
 			},
 			code: http.StatusOK,
-			out:  lib.JsonMarshalToBuffer(t, models.DriverIdle),
+			out:  lib.MustJsonMarshalToBuffer(t, driver.Idle),
 		},
 
 		{
@@ -109,12 +109,12 @@ func TestIntegration(t *testing.T) {
 				return req
 			},
 			code: http.StatusOK,
-			out:  lib.JsonMarshalToBuffer(t, nil),
+			out:  lib.MustJsonMarshalToBuffer(t, nil),
 		},
 
 		{
 			setup: func() *http.Request {
-				req := newRequest(t, http.MethodPost, "/driver/foo/operation", lib.JsonMarshalToBuffer(t, models.DriverOp{
+				req := newRequest(t, http.MethodPost, "/driver/foo/operation", lib.MustJsonMarshalToBuffer(t, driver.Op{
 					Name: "op",
 					Arg:  "arg",
 				}))
@@ -131,7 +131,7 @@ func TestIntegration(t *testing.T) {
 				return newRequest(t, http.MethodGet, "/driver/foo/status", nil)
 			},
 			code: http.StatusOK,
-			out:  lib.JsonMarshalToBuffer(t, models.DriverBusy),
+			out:  lib.MustJsonMarshalToBuffer(t, driver.Busy),
 		},
 
 		{
@@ -141,7 +141,7 @@ func TestIntegration(t *testing.T) {
 				return req
 			},
 			code: http.StatusOK,
-			out: lib.JsonMarshalToBuffer(t, models.DriverOp{
+			out: lib.MustJsonMarshalToBuffer(t, driver.Op{
 				Name: "op",
 				Arg:  "arg",
 			}),
@@ -149,7 +149,7 @@ func TestIntegration(t *testing.T) {
 
 		{
 			setup: func() *http.Request {
-				req := newRequest(t, http.MethodPut, "/driver/foo/state", lib.JsonMarshalToBuffer(t, "bar"))
+				req := newRequest(t, http.MethodPut, "/driver/foo/state", lib.MustJsonMarshalToBuffer(t, "bar"))
 				req.Header.Add("X-Driver-Token", token)
 				req.Header.Add("Content-Type", "application/json")
 				return req
@@ -163,12 +163,12 @@ func TestIntegration(t *testing.T) {
 				return newRequest(t, http.MethodGet, "/driver/foo/state", nil)
 			},
 			code: http.StatusOK,
-			out:  lib.JsonMarshalToBuffer(t, "bar"),
+			out:  lib.MustJsonMarshalToBuffer(t, "bar"),
 		},
 
 		{
 			setup: func() *http.Request {
-				req := newRequest(t, http.MethodPut, "/driver/foo/status", lib.JsonMarshalToBuffer(t, models.DriverIdle))
+				req := newRequest(t, http.MethodPut, "/driver/foo/status", lib.MustJsonMarshalToBuffer(t, driver.Idle))
 				req.Header.Add("X-Driver-Token", token)
 				req.Header.Add("Content-Type", "application/json")
 				return req
@@ -182,7 +182,7 @@ func TestIntegration(t *testing.T) {
 				return newRequest(t, http.MethodGet, "/driver/foo/status", nil)
 			},
 			code: http.StatusOK,
-			out:  lib.JsonMarshalToBuffer(t, models.DriverIdle),
+			out:  lib.MustJsonMarshalToBuffer(t, driver.Idle),
 		},
 
 		{
@@ -192,7 +192,7 @@ func TestIntegration(t *testing.T) {
 				return req
 			},
 			code: http.StatusOK,
-			out:  lib.JsonMarshalToBuffer(t, nil),
+			out:  lib.MustJsonMarshalToBuffer(t, nil),
 		},
 	}
 
@@ -212,8 +212,8 @@ func TestIntegration(t *testing.T) {
 				failed = true
 			}
 
-			if ops := lib.ReaderDiff(res.Body, tt.out); ops != nil {
-				t.Error(lib.JoinOps(ops, "\n"))
+			if ops := utils.ReaderDiff(res.Body, tt.out); ops != nil {
+				t.Error(utils.JoinOps(ops, "\n"))
 				failed = true
 			}
 		})

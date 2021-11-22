@@ -13,17 +13,17 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/golang/mock/gomock"
 	"github.com/ktnyt/labcon/cmd/labcon/app/controllers"
-	"github.com/ktnyt/labcon/cmd/labcon/app/models"
 	"github.com/ktnyt/labcon/cmd/labcon/app/usecases"
 	"github.com/ktnyt/labcon/cmd/labcon/app/usecases_mock"
 	"github.com/ktnyt/labcon/cmd/labcon/lib"
-	"github.com/ktnyt/labcon/cmd/labcon/utils"
+	"github.com/ktnyt/labcon/driver"
+	"github.com/ktnyt/labcon/utils"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
 func TestDriverRegister(t *testing.T) {
-	token := lib.Base32String(utils.NewToken(20))
+	token := lib.Base32String(lib.NewToken(20))
 
 	cases := []struct {
 		label string
@@ -41,8 +41,8 @@ func TestDriverRegister(t *testing.T) {
 					Times(1)
 			},
 			setup: func() *http.Request {
-				r := httptest.NewRequest(http.MethodPost, "/driver", lib.JsonMarshalToBuffer(
-					t, controllers.RegisterRequest{
+				r := httptest.NewRequest(http.MethodPost, "/driver", lib.MustJsonMarshalToBuffer(
+					t, driver.RegisterParams{
 						Name:  "foo",
 						State: "foo",
 					},
@@ -51,15 +51,15 @@ func TestDriverRegister(t *testing.T) {
 				return r
 			},
 			code: http.StatusOK,
-			out:  lib.JsonMarshalToBuffer(t, token),
+			out:  lib.MustJsonMarshalToBuffer(t, token),
 		},
 
 		{
 			label: "missing Content-Type header",
 			mock:  func(usecase *usecases_mock.MockDriverUsecase) {},
 			setup: func() *http.Request {
-				r := httptest.NewRequest(http.MethodPost, "/driver", lib.JsonMarshalToBuffer(
-					t, controllers.RegisterRequest{
+				r := httptest.NewRequest(http.MethodPost, "/driver", lib.MustJsonMarshalToBuffer(
+					t, driver.RegisterParams{
 						Name:  "foo",
 						State: "foo",
 					},
@@ -74,8 +74,8 @@ func TestDriverRegister(t *testing.T) {
 			label: "validation error",
 			mock:  func(usecase *usecases_mock.MockDriverUsecase) {},
 			setup: func() *http.Request {
-				r := httptest.NewRequest(http.MethodPost, "/driver", lib.JsonMarshalToBuffer(
-					t, controllers.RegisterRequest{
+				r := httptest.NewRequest(http.MethodPost, "/driver", lib.MustJsonMarshalToBuffer(
+					t, driver.RegisterParams{
 						Name:  "",
 						State: nil,
 					},
@@ -100,8 +100,8 @@ func TestDriverRegister(t *testing.T) {
 					Times(1)
 			},
 			setup: func() *http.Request {
-				r := httptest.NewRequest(http.MethodPost, "/driver", lib.JsonMarshalToBuffer(
-					t, controllers.RegisterRequest{
+				r := httptest.NewRequest(http.MethodPost, "/driver", lib.MustJsonMarshalToBuffer(
+					t, driver.RegisterParams{
 						Name:  "foo",
 						State: "foo",
 					},
@@ -122,8 +122,8 @@ func TestDriverRegister(t *testing.T) {
 					Times(1)
 			},
 			setup: func() *http.Request {
-				r := httptest.NewRequest(http.MethodPost, "/driver", lib.JsonMarshalToBuffer(
-					t, controllers.RegisterRequest{
+				r := httptest.NewRequest(http.MethodPost, "/driver", lib.MustJsonMarshalToBuffer(
+					t, driver.RegisterParams{
 						Name:  "foo",
 						State: "foo",
 					},
@@ -166,8 +166,8 @@ func TestDriverRegister(t *testing.T) {
 				failed = true
 			}
 
-			if ops := lib.ReaderDiff(w.Body, tt.out); ops != nil {
-				t.Errorf("%s %s response body:\n%s", r.Method, r.RequestURI, lib.JoinOps(ops, "\n"))
+			if ops := utils.ReaderDiff(w.Body, tt.out); ops != nil {
+				t.Errorf("%s %s response body:\n%s", r.Method, r.RequestURI, utils.JoinOps(ops, "\n"))
 				failed = true
 			}
 
@@ -202,7 +202,7 @@ func TestDriverGetState(t *testing.T) {
 				return r.WithContext(ctx)
 			},
 			code: http.StatusOK,
-			out:  lib.JsonMarshalToBuffer(t, "foo"),
+			out:  lib.MustJsonMarshalToBuffer(t, "foo"),
 		},
 
 		{
@@ -287,8 +287,8 @@ func TestDriverGetState(t *testing.T) {
 				failed = true
 			}
 
-			if ops := lib.ReaderDiff(w.Body, tt.out); ops != nil {
-				t.Errorf("%s %s response body:\n%s", r.Method, r.RequestURI, lib.JoinOps(ops, "\n"))
+			if ops := utils.ReaderDiff(w.Body, tt.out); ops != nil {
+				t.Errorf("%s %s response body:\n%s", r.Method, r.RequestURI, utils.JoinOps(ops, "\n"))
 				failed = true
 			}
 
@@ -322,7 +322,7 @@ func TestDriverSetState(t *testing.T) {
 			setup: func() *http.Request {
 				rctx := chi.NewRouteContext()
 				rctx.URLParams.Add("name", "foo")
-				r := httptest.NewRequest(http.MethodPut, "/driver/foo/state", lib.JsonMarshalToBuffer(t, "bar"))
+				r := httptest.NewRequest(http.MethodPut, "/driver/foo/state", lib.MustJsonMarshalToBuffer(t, "bar"))
 				r.Header.Set("X-Driver-Token", "foo")
 				r.Header.Set("Content-Type", "application/json")
 				ctx := context.WithValue(r.Context(), chi.RouteCtxKey, rctx)
@@ -337,7 +337,7 @@ func TestDriverSetState(t *testing.T) {
 			mock:  func(usecase *usecases_mock.MockDriverUsecase) {},
 			setup: func() *http.Request {
 				rctx := chi.NewRouteContext()
-				r := httptest.NewRequest(http.MethodPut, "/driver/foo/state", lib.JsonMarshalToBuffer(t, "bar"))
+				r := httptest.NewRequest(http.MethodPut, "/driver/foo/state", lib.MustJsonMarshalToBuffer(t, "bar"))
 				r.Header.Set("X-Driver-Token", "foo")
 				r.Header.Set("Content-Type", "application/json")
 				ctx := context.WithValue(r.Context(), chi.RouteCtxKey, rctx)
@@ -353,7 +353,7 @@ func TestDriverSetState(t *testing.T) {
 			setup: func() *http.Request {
 				rctx := chi.NewRouteContext()
 				rctx.URLParams.Add("name", "foo")
-				r := httptest.NewRequest(http.MethodPut, "/driver/foo/state", lib.JsonMarshalToBuffer(t, "bar"))
+				r := httptest.NewRequest(http.MethodPut, "/driver/foo/state", lib.MustJsonMarshalToBuffer(t, "bar"))
 				r.Header.Set("Content-Type", "application/json")
 				ctx := context.WithValue(r.Context(), chi.RouteCtxKey, rctx)
 				return r.WithContext(ctx)
@@ -373,7 +373,7 @@ func TestDriverSetState(t *testing.T) {
 			setup: func() *http.Request {
 				rctx := chi.NewRouteContext()
 				rctx.URLParams.Add("name", "foo")
-				r := httptest.NewRequest(http.MethodPut, "/driver/foo/state", lib.JsonMarshalToBuffer(t, "bar"))
+				r := httptest.NewRequest(http.MethodPut, "/driver/foo/state", lib.MustJsonMarshalToBuffer(t, "bar"))
 				r.Header.Set("X-Driver-Token", "foo")
 				r.Header.Set("Content-Type", "application/json")
 				ctx := context.WithValue(r.Context(), chi.RouteCtxKey, rctx)
@@ -394,7 +394,7 @@ func TestDriverSetState(t *testing.T) {
 			setup: func() *http.Request {
 				rctx := chi.NewRouteContext()
 				rctx.URLParams.Add("name", "foo")
-				r := httptest.NewRequest(http.MethodPut, "/driver/foo/state", lib.JsonMarshalToBuffer(t, "bar"))
+				r := httptest.NewRequest(http.MethodPut, "/driver/foo/state", lib.MustJsonMarshalToBuffer(t, "bar"))
 				r.Header.Set("X-Driver-Token", "foo")
 				r.Header.Set("Content-Type", "application/json")
 				ctx := context.WithValue(r.Context(), chi.RouteCtxKey, rctx)
@@ -415,7 +415,7 @@ func TestDriverSetState(t *testing.T) {
 			setup: func() *http.Request {
 				rctx := chi.NewRouteContext()
 				rctx.URLParams.Add("name", "foo")
-				r := httptest.NewRequest(http.MethodPut, "/driver/foo/state", lib.JsonMarshalToBuffer(t, "bar"))
+				r := httptest.NewRequest(http.MethodPut, "/driver/foo/state", lib.MustJsonMarshalToBuffer(t, "bar"))
 				r.Header.Set("X-Driver-Token", "foo")
 				r.Header.Set("Content-Type", "application/json")
 				ctx := context.WithValue(r.Context(), chi.RouteCtxKey, rctx)
@@ -436,7 +436,7 @@ func TestDriverSetState(t *testing.T) {
 			setup: func() *http.Request {
 				rctx := chi.NewRouteContext()
 				rctx.URLParams.Add("name", "foo")
-				r := httptest.NewRequest(http.MethodPut, "/driver/foo/state", lib.JsonMarshalToBuffer(t, "bar"))
+				r := httptest.NewRequest(http.MethodPut, "/driver/foo/state", lib.MustJsonMarshalToBuffer(t, "bar"))
 				r.Header.Set("X-Driver-Token", "foo")
 				ctx := context.WithValue(r.Context(), chi.RouteCtxKey, rctx)
 				return r.WithContext(ctx)
@@ -460,7 +460,7 @@ func TestDriverSetState(t *testing.T) {
 			setup: func() *http.Request {
 				rctx := chi.NewRouteContext()
 				rctx.URLParams.Add("name", "foo")
-				r := httptest.NewRequest(http.MethodPut, "/driver/foo/state", lib.JsonMarshalToBuffer(t, "bar"))
+				r := httptest.NewRequest(http.MethodPut, "/driver/foo/state", lib.MustJsonMarshalToBuffer(t, "bar"))
 				r.Header.Set("X-Driver-Token", "foo")
 				r.Header.Set("Content-Type", "application/json")
 				ctx := context.WithValue(r.Context(), chi.RouteCtxKey, rctx)
@@ -485,7 +485,7 @@ func TestDriverSetState(t *testing.T) {
 			setup: func() *http.Request {
 				rctx := chi.NewRouteContext()
 				rctx.URLParams.Add("name", "foo")
-				r := httptest.NewRequest(http.MethodPut, "/driver/foo/state", lib.JsonMarshalToBuffer(t, "bar"))
+				r := httptest.NewRequest(http.MethodPut, "/driver/foo/state", lib.MustJsonMarshalToBuffer(t, "bar"))
 				r.Header.Set("X-Driver-Token", "foo")
 				r.Header.Set("Content-Type", "application/json")
 				ctx := context.WithValue(r.Context(), chi.RouteCtxKey, rctx)
@@ -526,8 +526,8 @@ func TestDriverSetState(t *testing.T) {
 				failed = true
 			}
 
-			if ops := lib.ReaderDiff(w.Body, tt.out); ops != nil {
-				t.Errorf("%s %s response body:\n%s", r.Method, r.RequestURI, lib.JoinOps(ops, "\n"))
+			if ops := utils.ReaderDiff(w.Body, tt.out); ops != nil {
+				t.Errorf("%s %s response body:\n%s", r.Method, r.RequestURI, utils.JoinOps(ops, "\n"))
 				failed = true
 			}
 
@@ -551,7 +551,7 @@ func TestDriverGetStatus(t *testing.T) {
 			mock: func(usecase *usecases_mock.MockDriverUsecase) {
 				usecase.EXPECT().
 					GetStatus("foo").
-					Return(models.DriverIdle, nil).
+					Return(driver.Idle, nil).
 					Times(1)
 			},
 			setup: func() *http.Request {
@@ -562,7 +562,7 @@ func TestDriverGetStatus(t *testing.T) {
 				return r.WithContext(ctx)
 			},
 			code: http.StatusOK,
-			out:  lib.JsonMarshalToBuffer(t, models.DriverIdle),
+			out:  lib.MustJsonMarshalToBuffer(t, driver.Idle),
 		},
 
 		{
@@ -583,7 +583,7 @@ func TestDriverGetStatus(t *testing.T) {
 			mock: func(usecase *usecases_mock.MockDriverUsecase) {
 				usecase.EXPECT().
 					GetStatus("foo").
-					Return(models.DriverError, lib.ErrNotFound).
+					Return(driver.Error, lib.ErrNotFound).
 					Times(1)
 			},
 			setup: func() *http.Request {
@@ -603,7 +603,7 @@ func TestDriverGetStatus(t *testing.T) {
 			mock: func(usecase *usecases_mock.MockDriverUsecase) {
 				usecase.EXPECT().
 					GetStatus("foo").
-					Return(models.DriverError, lib.ErrUnknown).
+					Return(driver.Error, lib.ErrUnknown).
 					Times(1)
 			},
 			setup: func() *http.Request {
@@ -649,8 +649,8 @@ func TestDriverGetStatus(t *testing.T) {
 				failed = true
 			}
 
-			if ops := lib.ReaderDiff(w.Body, tt.out); ops != nil {
-				t.Errorf("%s %s response body:\n%s", r.Method, r.RequestURI, lib.JoinOps(ops, "\n"))
+			if ops := utils.ReaderDiff(w.Body, tt.out); ops != nil {
+				t.Errorf("%s %s response body:\n%s", r.Method, r.RequestURI, utils.JoinOps(ops, "\n"))
 				failed = true
 			}
 
@@ -677,14 +677,14 @@ func TestDriverSetStatus(t *testing.T) {
 					Return(nil).
 					Times(1)
 				usecase.EXPECT().
-					SetStatus("foo", models.DriverIdle).
+					SetStatus("foo", driver.Idle).
 					Return(nil).
 					Times(1)
 			},
 			setup: func() *http.Request {
 				rctx := chi.NewRouteContext()
 				rctx.URLParams.Add("name", "foo")
-				r := httptest.NewRequest(http.MethodPut, "/driver/foo/status", lib.JsonMarshalToBuffer(t, models.DriverIdle))
+				r := httptest.NewRequest(http.MethodPut, "/driver/foo/status", lib.MustJsonMarshalToBuffer(t, driver.Idle))
 				r.Header.Set("X-Driver-Token", "foo")
 				r.Header.Set("Content-Type", "application/json")
 				ctx := context.WithValue(r.Context(), chi.RouteCtxKey, rctx)
@@ -699,7 +699,7 @@ func TestDriverSetStatus(t *testing.T) {
 			mock:  func(usecase *usecases_mock.MockDriverUsecase) {},
 			setup: func() *http.Request {
 				rctx := chi.NewRouteContext()
-				r := httptest.NewRequest(http.MethodPut, "/driver/foo/status", lib.JsonMarshalToBuffer(t, models.DriverIdle))
+				r := httptest.NewRequest(http.MethodPut, "/driver/foo/status", lib.MustJsonMarshalToBuffer(t, driver.Idle))
 				r.Header.Set("X-Driver-Token", "foo")
 				r.Header.Set("Content-Type", "application/json")
 				ctx := context.WithValue(r.Context(), chi.RouteCtxKey, rctx)
@@ -715,7 +715,7 @@ func TestDriverSetStatus(t *testing.T) {
 			setup: func() *http.Request {
 				rctx := chi.NewRouteContext()
 				rctx.URLParams.Add("name", "foo")
-				r := httptest.NewRequest(http.MethodPut, "/driver/foo/status", lib.JsonMarshalToBuffer(t, models.DriverIdle))
+				r := httptest.NewRequest(http.MethodPut, "/driver/foo/status", lib.MustJsonMarshalToBuffer(t, driver.Idle))
 				r.Header.Set("Content-Type", "application/json")
 				ctx := context.WithValue(r.Context(), chi.RouteCtxKey, rctx)
 				return r.WithContext(ctx)
@@ -735,7 +735,7 @@ func TestDriverSetStatus(t *testing.T) {
 			setup: func() *http.Request {
 				rctx := chi.NewRouteContext()
 				rctx.URLParams.Add("name", "foo")
-				r := httptest.NewRequest(http.MethodPut, "/driver/foo/status", lib.JsonMarshalToBuffer(t, models.DriverIdle))
+				r := httptest.NewRequest(http.MethodPut, "/driver/foo/status", lib.MustJsonMarshalToBuffer(t, driver.Idle))
 				r.Header.Set("X-Driver-Token", "foo")
 				r.Header.Set("Content-Type", "application/json")
 				ctx := context.WithValue(r.Context(), chi.RouteCtxKey, rctx)
@@ -756,7 +756,7 @@ func TestDriverSetStatus(t *testing.T) {
 			setup: func() *http.Request {
 				rctx := chi.NewRouteContext()
 				rctx.URLParams.Add("name", "foo")
-				r := httptest.NewRequest(http.MethodPut, "/driver/foo/status", lib.JsonMarshalToBuffer(t, models.DriverIdle))
+				r := httptest.NewRequest(http.MethodPut, "/driver/foo/status", lib.MustJsonMarshalToBuffer(t, driver.Idle))
 				r.Header.Set("X-Driver-Token", "foo")
 				r.Header.Set("Content-Type", "application/json")
 				ctx := context.WithValue(r.Context(), chi.RouteCtxKey, rctx)
@@ -777,7 +777,7 @@ func TestDriverSetStatus(t *testing.T) {
 			setup: func() *http.Request {
 				rctx := chi.NewRouteContext()
 				rctx.URLParams.Add("name", "foo")
-				r := httptest.NewRequest(http.MethodPut, "/driver/foo/status", lib.JsonMarshalToBuffer(t, models.DriverIdle))
+				r := httptest.NewRequest(http.MethodPut, "/driver/foo/status", lib.MustJsonMarshalToBuffer(t, driver.Idle))
 				r.Header.Set("X-Driver-Token", "foo")
 				r.Header.Set("Content-Type", "application/json")
 				ctx := context.WithValue(r.Context(), chi.RouteCtxKey, rctx)
@@ -798,7 +798,7 @@ func TestDriverSetStatus(t *testing.T) {
 			setup: func() *http.Request {
 				rctx := chi.NewRouteContext()
 				rctx.URLParams.Add("name", "foo")
-				r := httptest.NewRequest(http.MethodPut, "/driver/foo/status", lib.JsonMarshalToBuffer(t, models.DriverIdle))
+				r := httptest.NewRequest(http.MethodPut, "/driver/foo/status", lib.MustJsonMarshalToBuffer(t, driver.Idle))
 				r.Header.Set("X-Driver-Token", "foo")
 				ctx := context.WithValue(r.Context(), chi.RouteCtxKey, rctx)
 				return r.WithContext(ctx)
@@ -815,14 +815,14 @@ func TestDriverSetStatus(t *testing.T) {
 					Return(nil).
 					Times(1)
 				usecase.EXPECT().
-					SetStatus("foo", models.DriverIdle).
+					SetStatus("foo", driver.Idle).
 					Return(lib.ErrNotFound).
 					Times(1)
 			},
 			setup: func() *http.Request {
 				rctx := chi.NewRouteContext()
 				rctx.URLParams.Add("name", "foo")
-				r := httptest.NewRequest(http.MethodPut, "/driver/foo/status", lib.JsonMarshalToBuffer(t, models.DriverIdle))
+				r := httptest.NewRequest(http.MethodPut, "/driver/foo/status", lib.MustJsonMarshalToBuffer(t, driver.Idle))
 				r.Header.Set("X-Driver-Token", "foo")
 				r.Header.Set("Content-Type", "application/json")
 				ctx := context.WithValue(r.Context(), chi.RouteCtxKey, rctx)
@@ -840,14 +840,14 @@ func TestDriverSetStatus(t *testing.T) {
 					Return(nil).
 					Times(1)
 				usecase.EXPECT().
-					SetStatus("foo", models.DriverIdle).
+					SetStatus("foo", driver.Idle).
 					Return(lib.ErrUnknown).
 					Times(1)
 			},
 			setup: func() *http.Request {
 				rctx := chi.NewRouteContext()
 				rctx.URLParams.Add("name", "foo")
-				r := httptest.NewRequest(http.MethodPut, "/driver/foo/status", lib.JsonMarshalToBuffer(t, models.DriverIdle))
+				r := httptest.NewRequest(http.MethodPut, "/driver/foo/status", lib.MustJsonMarshalToBuffer(t, driver.Idle))
 				r.Header.Set("X-Driver-Token", "foo")
 				r.Header.Set("Content-Type", "application/json")
 				ctx := context.WithValue(r.Context(), chi.RouteCtxKey, rctx)
@@ -888,8 +888,8 @@ func TestDriverSetStatus(t *testing.T) {
 				failed = true
 			}
 
-			if ops := lib.ReaderDiff(w.Body, tt.out); ops != nil {
-				t.Errorf("%s %s response body:\n%s", r.Method, r.RequestURI, lib.JoinOps(ops, "\n"))
+			if ops := utils.ReaderDiff(w.Body, tt.out); ops != nil {
+				t.Errorf("%s %s response body:\n%s", r.Method, r.RequestURI, utils.JoinOps(ops, "\n"))
 				failed = true
 			}
 
@@ -917,7 +917,7 @@ func TestDriverOperation(t *testing.T) {
 					Times(1)
 				usecase.EXPECT().
 					GetOp("foo").
-					Return(&models.DriverOp{
+					Return(&driver.Op{
 						Name: "op",
 						Arg:  "arg",
 					}, nil).
@@ -932,7 +932,7 @@ func TestDriverOperation(t *testing.T) {
 				return r.WithContext(ctx)
 			},
 			code: http.StatusOK,
-			out: lib.JsonMarshalToBuffer(t, models.DriverOp{
+			out: lib.MustJsonMarshalToBuffer(t, driver.Op{
 				Name: "op",
 				Arg:  "arg",
 			}),
@@ -957,7 +957,7 @@ func TestDriverOperation(t *testing.T) {
 			setup: func() *http.Request {
 				rctx := chi.NewRouteContext()
 				rctx.URLParams.Add("name", "foo")
-				r := httptest.NewRequest(http.MethodGet, "/driver/foo/operation", lib.JsonMarshalToBuffer(t, models.DriverIdle))
+				r := httptest.NewRequest(http.MethodGet, "/driver/foo/operation", lib.MustJsonMarshalToBuffer(t, driver.Idle))
 				ctx := context.WithValue(r.Context(), chi.RouteCtxKey, rctx)
 				return r.WithContext(ctx)
 			},
@@ -976,7 +976,7 @@ func TestDriverOperation(t *testing.T) {
 			setup: func() *http.Request {
 				rctx := chi.NewRouteContext()
 				rctx.URLParams.Add("name", "foo")
-				r := httptest.NewRequest(http.MethodGet, "/driver/foo/operation", lib.JsonMarshalToBuffer(t, models.DriverIdle))
+				r := httptest.NewRequest(http.MethodGet, "/driver/foo/operation", lib.MustJsonMarshalToBuffer(t, driver.Idle))
 				r.Header.Set("X-Driver-Token", "foo")
 				ctx := context.WithValue(r.Context(), chi.RouteCtxKey, rctx)
 				return r.WithContext(ctx)
@@ -996,7 +996,7 @@ func TestDriverOperation(t *testing.T) {
 			setup: func() *http.Request {
 				rctx := chi.NewRouteContext()
 				rctx.URLParams.Add("name", "foo")
-				r := httptest.NewRequest(http.MethodGet, "/driver/foo/operation", lib.JsonMarshalToBuffer(t, models.DriverIdle))
+				r := httptest.NewRequest(http.MethodGet, "/driver/foo/operation", lib.MustJsonMarshalToBuffer(t, driver.Idle))
 				r.Header.Set("X-Driver-Token", "foo")
 				ctx := context.WithValue(r.Context(), chi.RouteCtxKey, rctx)
 				return r.WithContext(ctx)
@@ -1016,7 +1016,7 @@ func TestDriverOperation(t *testing.T) {
 			setup: func() *http.Request {
 				rctx := chi.NewRouteContext()
 				rctx.URLParams.Add("name", "foo")
-				r := httptest.NewRequest(http.MethodGet, "/driver/foo/operation", lib.JsonMarshalToBuffer(t, models.DriverIdle))
+				r := httptest.NewRequest(http.MethodGet, "/driver/foo/operation", lib.MustJsonMarshalToBuffer(t, driver.Idle))
 				r.Header.Set("X-Driver-Token", "foo")
 				ctx := context.WithValue(r.Context(), chi.RouteCtxKey, rctx)
 				return r.WithContext(ctx)
@@ -1034,7 +1034,7 @@ func TestDriverOperation(t *testing.T) {
 					Times(1)
 				usecase.EXPECT().
 					GetOp("foo").
-					Return(&models.DriverOp{}, lib.ErrNotFound).
+					Return(&driver.Op{}, lib.ErrNotFound).
 					Times(1)
 			},
 			setup: func() *http.Request {
@@ -1058,7 +1058,7 @@ func TestDriverOperation(t *testing.T) {
 					Times(1)
 				usecase.EXPECT().
 					GetOp("foo").
-					Return(&models.DriverOp{}, lib.ErrUnknown).
+					Return(&driver.Op{}, lib.ErrUnknown).
 					Times(1)
 			},
 			setup: func() *http.Request {
@@ -1104,8 +1104,8 @@ func TestDriverOperation(t *testing.T) {
 				failed = true
 			}
 
-			if ops := lib.ReaderDiff(w.Body, tt.out); ops != nil {
-				t.Errorf("%s %s response body:\n%s", r.Method, r.RequestURI, lib.JoinOps(ops, "\n"))
+			if ops := utils.ReaderDiff(w.Body, tt.out); ops != nil {
+				t.Errorf("%s %s response body:\n%s", r.Method, r.RequestURI, utils.JoinOps(ops, "\n"))
 				failed = true
 			}
 
@@ -1128,11 +1128,7 @@ func TestDriverDispatch(t *testing.T) {
 			label: "success",
 			mock: func(usecase *usecases_mock.MockDriverUsecase) {
 				usecase.EXPECT().
-					Authorize("foo", "foo").
-					Return(nil).
-					Times(1)
-				usecase.EXPECT().
-					SetOp("foo", models.DriverOp{
+					SetOp("foo", driver.Op{
 						Name: "op",
 						Arg:  "arg",
 					}).
@@ -1142,7 +1138,7 @@ func TestDriverDispatch(t *testing.T) {
 			setup: func() *http.Request {
 				rctx := chi.NewRouteContext()
 				rctx.URLParams.Add("name", "foo")
-				r := httptest.NewRequest(http.MethodPost, "/driver/foo/operation", lib.JsonMarshalToBuffer(t, models.DriverOp{
+				r := httptest.NewRequest(http.MethodPost, "/driver/foo/operation", lib.MustJsonMarshalToBuffer(t, driver.Op{
 					Name: "op",
 					Arg:  "arg",
 				}))
@@ -1160,7 +1156,7 @@ func TestDriverDispatch(t *testing.T) {
 			mock:  func(usecase *usecases_mock.MockDriverUsecase) {},
 			setup: func() *http.Request {
 				rctx := chi.NewRouteContext()
-				r := httptest.NewRequest(http.MethodPost, "/driver/foo/operation", lib.JsonMarshalToBuffer(t, models.DriverOp{
+				r := httptest.NewRequest(http.MethodPost, "/driver/foo/operation", lib.MustJsonMarshalToBuffer(t, driver.Op{
 					Name: "op",
 					Arg:  "arg",
 				}))
@@ -1172,107 +1168,12 @@ func TestDriverDispatch(t *testing.T) {
 		},
 
 		{
-			label: "missing X-Driver-Token header",
+			label: "missing Content-Type header",
 			mock:  func(usecase *usecases_mock.MockDriverUsecase) {},
 			setup: func() *http.Request {
 				rctx := chi.NewRouteContext()
 				rctx.URLParams.Add("name", "foo")
-				r := httptest.NewRequest(http.MethodPost, "/driver/foo/operation", lib.JsonMarshalToBuffer(t, models.DriverOp{
-					Name: "op",
-					Arg:  "arg",
-				}))
-				r.Header.Set("Content-Type", "application/json")
-				ctx := context.WithValue(r.Context(), chi.RouteCtxKey, rctx)
-				return r.WithContext(ctx)
-			},
-			code: http.StatusBadRequest,
-			out:  bytes.NewBufferString("missing X-Driver-Token header\n"),
-		},
-
-		{
-			label: "token not found",
-			mock: func(usecase *usecases_mock.MockDriverUsecase) {
-				usecase.EXPECT().
-					Authorize("foo", "foo").
-					Return(lib.ErrNotFound).
-					Times(1)
-			},
-			setup: func() *http.Request {
-				rctx := chi.NewRouteContext()
-				rctx.URLParams.Add("name", "foo")
-				r := httptest.NewRequest(http.MethodPost, "/driver/foo/operation", lib.JsonMarshalToBuffer(t, models.DriverOp{
-					Name: "op",
-					Arg:  "arg",
-				}))
-				r.Header.Set("X-Driver-Token", "foo")
-				r.Header.Set("Content-Type", "application/json")
-				ctx := context.WithValue(r.Context(), chi.RouteCtxKey, rctx)
-				return r.WithContext(ctx)
-			},
-			code: http.StatusNotFound,
-			out:  bytes.NewBufferString("failed to dispatch for driver \"foo\": not found\n"),
-		},
-
-		{
-			label: "unauthorized",
-			mock: func(usecase *usecases_mock.MockDriverUsecase) {
-				usecase.EXPECT().
-					Authorize("foo", "foo").
-					Return(lib.ErrUnauthorized).
-					Times(1)
-			},
-			setup: func() *http.Request {
-				rctx := chi.NewRouteContext()
-				rctx.URLParams.Add("name", "foo")
-				r := httptest.NewRequest(http.MethodPost, "/driver/foo/operation", lib.JsonMarshalToBuffer(t, models.DriverOp{
-					Name: "op",
-					Arg:  "arg",
-				}))
-				r.Header.Set("X-Driver-Token", "foo")
-				r.Header.Set("Content-Type", "application/json")
-				ctx := context.WithValue(r.Context(), chi.RouteCtxKey, rctx)
-				return r.WithContext(ctx)
-			},
-			code: http.StatusUnauthorized,
-			out:  bytes.NewBufferString("failed to dispatch for driver \"foo\": unauthorized\n"),
-		},
-
-		{
-			label: "internal authorization error",
-			mock: func(usecase *usecases_mock.MockDriverUsecase) {
-				usecase.EXPECT().
-					Authorize("foo", "foo").
-					Return(lib.ErrUnknown).
-					Times(1)
-			},
-			setup: func() *http.Request {
-				rctx := chi.NewRouteContext()
-				rctx.URLParams.Add("name", "foo")
-				r := httptest.NewRequest(http.MethodPost, "/driver/foo/operation", lib.JsonMarshalToBuffer(t, models.DriverOp{
-					Name: "op",
-					Arg:  "arg",
-				}))
-				r.Header.Set("X-Driver-Token", "foo")
-				r.Header.Set("Content-Type", "application/json")
-				ctx := context.WithValue(r.Context(), chi.RouteCtxKey, rctx)
-				return r.WithContext(ctx)
-			},
-			code: http.StatusInternalServerError,
-			out:  bytes.NewBufferString("Internal Server Error\n"),
-		},
-
-		{
-			label: "missing Content-Type header",
-			mock: func(usecase *usecases_mock.MockDriverUsecase) {
-				usecase.EXPECT().
-					Authorize("foo", "foo").
-					Return(nil).
-					Times(1)
-			},
-			setup: func() *http.Request {
-				rctx := chi.NewRouteContext()
-				rctx.URLParams.Add("name", "foo")
-				r := httptest.NewRequest(http.MethodPost, "/driver/foo/operation", lib.JsonMarshalToBuffer(t, models.DriverOp{
+				r := httptest.NewRequest(http.MethodPost, "/driver/foo/operation", lib.MustJsonMarshalToBuffer(t, driver.Op{
 					Name: "op",
 					Arg:  "arg",
 				}))
@@ -1286,16 +1187,11 @@ func TestDriverDispatch(t *testing.T) {
 
 		{
 			label: "validation error",
-			mock: func(usecase *usecases_mock.MockDriverUsecase) {
-				usecase.EXPECT().
-					Authorize("foo", "foo").
-					Return(nil).
-					Times(1)
-			},
+			mock:  func(usecase *usecases_mock.MockDriverUsecase) {},
 			setup: func() *http.Request {
 				rctx := chi.NewRouteContext()
 				rctx.URLParams.Add("name", "foo")
-				r := httptest.NewRequest(http.MethodPost, "/driver/foo/operation", lib.JsonMarshalToBuffer(t, models.DriverOp{
+				r := httptest.NewRequest(http.MethodPost, "/driver/foo/operation", lib.MustJsonMarshalToBuffer(t, driver.Op{
 					Name: "",
 					Arg:  nil,
 				}))
@@ -1312,11 +1208,7 @@ func TestDriverDispatch(t *testing.T) {
 			label: "not found",
 			mock: func(usecase *usecases_mock.MockDriverUsecase) {
 				usecase.EXPECT().
-					Authorize("foo", "foo").
-					Return(nil).
-					Times(1)
-				usecase.EXPECT().
-					SetOp("foo", models.DriverOp{
+					SetOp("foo", driver.Op{
 						Name: "op",
 						Arg:  "arg",
 					}).
@@ -1326,7 +1218,7 @@ func TestDriverDispatch(t *testing.T) {
 			setup: func() *http.Request {
 				rctx := chi.NewRouteContext()
 				rctx.URLParams.Add("name", "foo")
-				r := httptest.NewRequest(http.MethodPost, "/driver/foo/operation", lib.JsonMarshalToBuffer(t, models.DriverOp{
+				r := httptest.NewRequest(http.MethodPost, "/driver/foo/operation", lib.MustJsonMarshalToBuffer(t, driver.Op{
 					Name: "op",
 					Arg:  "arg",
 				}))
@@ -1343,11 +1235,7 @@ func TestDriverDispatch(t *testing.T) {
 			label: "internal error",
 			mock: func(usecase *usecases_mock.MockDriverUsecase) {
 				usecase.EXPECT().
-					Authorize("foo", "foo").
-					Return(nil).
-					Times(1)
-				usecase.EXPECT().
-					SetOp("foo", models.DriverOp{
+					SetOp("foo", driver.Op{
 						Name: "op",
 						Arg:  "arg",
 					}).
@@ -1357,7 +1245,7 @@ func TestDriverDispatch(t *testing.T) {
 			setup: func() *http.Request {
 				rctx := chi.NewRouteContext()
 				rctx.URLParams.Add("name", "foo")
-				r := httptest.NewRequest(http.MethodPost, "/driver/foo/operation", lib.JsonMarshalToBuffer(t, models.DriverOp{
+				r := httptest.NewRequest(http.MethodPost, "/driver/foo/operation", lib.MustJsonMarshalToBuffer(t, driver.Op{
 					Name: "op",
 					Arg:  "arg",
 				}))
@@ -1401,8 +1289,8 @@ func TestDriverDispatch(t *testing.T) {
 				failed = true
 			}
 
-			if ops := lib.ReaderDiff(w.Body, tt.out); ops != nil {
-				t.Errorf("%s %s response body:\n%s", r.Method, r.RequestURI, lib.JoinOps(ops, "\n"))
+			if ops := utils.ReaderDiff(w.Body, tt.out); ops != nil {
+				t.Errorf("%s %s response body:\n%s", r.Method, r.RequestURI, utils.JoinOps(ops, "\n"))
 				failed = true
 			}
 

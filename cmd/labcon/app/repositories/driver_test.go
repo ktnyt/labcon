@@ -8,7 +8,7 @@ import (
 	"github.com/ktnyt/labcon/cmd/labcon/app/models"
 	"github.com/ktnyt/labcon/cmd/labcon/app/repositories"
 	"github.com/ktnyt/labcon/cmd/labcon/lib"
-	"github.com/ktnyt/labcon/cmd/labcon/utils"
+	"github.com/ktnyt/labcon/utils"
 )
 
 func TestDriverCreate(t *testing.T) {
@@ -29,19 +29,19 @@ func TestDriverCreate(t *testing.T) {
 		{
 			name:  "foo",
 			state: "foo",
-			token: lib.Base32String(utils.NewToken(20)),
+			token: lib.Base32String(lib.NewToken(20)),
 			err:   nil,
 		},
 		{
 			name:  "bar",
 			state: "bar",
-			token: lib.Base32String(utils.NewToken(20)),
+			token: lib.Base32String(lib.NewToken(20)),
 			err:   nil,
 		},
 		{
 			name:  "foo",
 			state: "bar",
-			token: lib.Base32String(utils.NewToken(20)),
+			token: lib.Base32String(lib.NewToken(20)),
 			err:   lib.ErrAlreadyExists,
 		},
 	}
@@ -64,7 +64,7 @@ func TestDriverFetch(t *testing.T) {
 	defer db.Close()
 	repo := repositories.NewDriverRepository(db)
 
-	token := lib.Base32String(utils.NewToken(20))
+	token := lib.Base32String(lib.NewToken(20))
 	if err := repo.Create("foo", token, "foo"); err != nil {
 		t.Fatalf("failed to create driver in fixture: %v", err)
 	}
@@ -91,8 +91,8 @@ func TestDriverFetch(t *testing.T) {
 			}
 
 			if tt.err == nil {
-				if ops := lib.ObjDiff(out, tt.out); ops != nil {
-					t.Errorf("diff:\n%s", lib.JoinOps(ops, "\n"))
+				if ops := utils.ObjDiff(out, tt.out); ops != nil {
+					t.Errorf("diff:\n%s", utils.JoinOps(ops, "\n"))
 				}
 			}
 		})
@@ -108,7 +108,7 @@ func TestDriverUpdate(t *testing.T) {
 	defer db.Close()
 	repo := repositories.NewDriverRepository(db)
 
-	token := lib.Base32String(utils.NewToken(20))
+	token := lib.Base32String(lib.NewToken(20))
 	if err := repo.Create("foo", token, "foo"); err != nil {
 		t.Fatalf("failed to create driver in fixture")
 	}
@@ -142,8 +142,8 @@ func TestDriverUpdate(t *testing.T) {
 					t.Fatal("failed to fetch driver")
 				}
 
-				if ops := lib.ObjDiff(out.State, tt.state); ops != nil {
-					t.Errorf("\n%s", lib.JoinOps(ops, "\n"))
+				if ops := utils.ObjDiff(out.State, tt.state); ops != nil {
+					t.Errorf("\n%s", utils.JoinOps(ops, "\n"))
 				}
 			}
 		})
@@ -159,7 +159,7 @@ func TestDriverDelete(t *testing.T) {
 	defer db.Close()
 	repo := repositories.NewDriverRepository(db)
 
-	token := lib.Base32String(utils.NewToken(20))
+	token := lib.Base32String(lib.NewToken(20))
 	if err := repo.Create("foo", token, "foo"); err != nil {
 		t.Fatalf("failed to create driver in fixture")
 	}

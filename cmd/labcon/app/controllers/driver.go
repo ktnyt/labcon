@@ -7,9 +7,9 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/ktnyt/labcon/cmd/labcon/app/models"
 	"github.com/ktnyt/labcon/cmd/labcon/app/usecases"
 	"github.com/ktnyt/labcon/cmd/labcon/lib"
+	"github.com/ktnyt/labcon/driver"
 )
 
 type DriverController interface {
@@ -30,11 +30,6 @@ func NewDriverController(inject func(context.Context) usecases.DriverUsecase) Dr
 	return DriverControllerImpl{inject: inject}
 }
 
-type RegisterRequest struct {
-	Name  string      `json:"name" validate:"required"`
-	State interface{} `json:"state" validate:"required"`
-}
-
 func (controller DriverControllerImpl) Register(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	logger := lib.UseLogger(ctx)
@@ -42,7 +37,7 @@ func (controller DriverControllerImpl) Register(w http.ResponseWriter, r *http.R
 	// Dependency injection.
 	usecase := controller.inject(ctx)
 
-	var req RegisterRequest
+	var req driver.RegisterParams
 	if err := lib.JsonRequest(r, &req); err != nil {
 		logger.Warn().Err(err).Msg("failed to process request")
 		lib.HTTPError(w, http.StatusBadRequest)
@@ -208,7 +203,7 @@ func (controller DriverControllerImpl) SetStatus(w http.ResponseWriter, r *http.
 		return
 	}
 
-	var status models.DriverStatus
+	var status driver.Status
 	if err := lib.JsonRequest(r, &status); err != nil {
 		logger.Warn().Err(err).Msg("failed to process request")
 		lib.HTTPError(w, http.StatusBadRequest)
@@ -288,27 +283,7 @@ func (controller DriverControllerImpl) Dispatch(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	token := r.Header.Get("X-Driver-Token")
-	if token == "" {
-		http.Error(w, "missing X-Driver-Token header", http.StatusBadRequest)
-		return
-	}
-
-	if err := usecase.Authorize(name, token); err != nil {
-		if errors.Is(err, lib.ErrNotFound) {
-			http.Error(w, fmt.Sprintf("failed to dispatch for driver %q: %v", name, err), http.StatusNotFound)
-			return
-		}
-		if errors.Is(err, lib.ErrUnauthorized) {
-			http.Error(w, fmt.Sprintf("failed to dispatch for driver %q: %v", name, err), http.StatusUnauthorized)
-			return
-		}
-		logger.Err(err).Msgf("failed to dispatch for driver %q", name)
-		lib.HTTPError(w, http.StatusInternalServerError)
-		return
-	}
-
-	var op models.DriverOp
+	var op driver.Op
 	if err := lib.JsonRequest(r, &op); err != nil {
 		logger.Warn().Err(err).Msg("failed to process request")
 		lib.HTTPError(w, http.StatusBadRequest)

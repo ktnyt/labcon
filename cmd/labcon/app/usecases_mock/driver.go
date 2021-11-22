@@ -8,7 +8,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	models "github.com/ktnyt/labcon/cmd/labcon/app/models"
+	driver "github.com/ktnyt/labcon/driver"
 )
 
 // MockDriverUsecase is a mock of DriverUsecase interface.
@@ -49,10 +49,10 @@ func (mr *MockDriverUsecaseMockRecorder) Authorize(name, token interface{}) *gom
 }
 
 // GetOp mocks base method.
-func (m *MockDriverUsecase) GetOp(name string) (*models.DriverOp, error) {
+func (m *MockDriverUsecase) GetOp(name string) (*driver.Op, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetOp", name)
-	ret0, _ := ret[0].(*models.DriverOp)
+	ret0, _ := ret[0].(*driver.Op)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -79,10 +79,10 @@ func (mr *MockDriverUsecaseMockRecorder) GetState(name interface{}) *gomock.Call
 }
 
 // GetStatus mocks base method.
-func (m *MockDriverUsecase) GetStatus(name string) (models.DriverStatus, error) {
+func (m *MockDriverUsecase) GetStatus(name string) (driver.Status, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetStatus", name)
-	ret0, _ := ret[0].(models.DriverStatus)
+	ret0, _ := ret[0].(driver.Status)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -109,7 +109,7 @@ func (mr *MockDriverUsecaseMockRecorder) Register(name, state interface{}) *gomo
 }
 
 // SetOp mocks base method.
-func (m *MockDriverUsecase) SetOp(name string, op models.DriverOp) error {
+func (m *MockDriverUsecase) SetOp(name string, op driver.Op) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SetOp", name, op)
 	ret0, _ := ret[0].(error)
@@ -137,7 +137,7 @@ func (mr *MockDriverUsecaseMockRecorder) SetState(name, state interface{}) *gomo
 }
 
 // SetStatus mocks base method.
-func (m *MockDriverUsecase) SetStatus(name string, status models.DriverStatus) error {
+func (m *MockDriverUsecase) SetStatus(name string, status driver.Status) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SetStatus", name, status)
 	ret0, _ := ret[0].(error)

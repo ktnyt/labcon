@@ -11,11 +11,12 @@ import (
 	"github.com/ktnyt/labcon/cmd/labcon/app/repositories_mock"
 	"github.com/ktnyt/labcon/cmd/labcon/app/usecases"
 	"github.com/ktnyt/labcon/cmd/labcon/lib"
-	"github.com/ktnyt/labcon/cmd/labcon/utils"
+	"github.com/ktnyt/labcon/driver"
+	"github.com/ktnyt/labcon/utils"
 )
 
 func TestDriverRegister(t *testing.T) {
-	token := lib.Base32String(utils.NewToken(20))
+	token := lib.Base32String(lib.NewToken(20))
 
 	cases := []struct {
 		mock func(repository *repositories_mock.MockDriverRepository)
@@ -118,7 +119,7 @@ func TestDriverAuthorize(t *testing.T) {
 }
 
 func TestDriverGetState(t *testing.T) {
-	token := lib.Base32String(utils.NewToken(20))
+	token := lib.Base32String(lib.NewToken(20))
 
 	cases := []struct {
 		mock func(repository *repositories_mock.MockDriverRepository)
@@ -166,7 +167,7 @@ func TestDriverGetState(t *testing.T) {
 			}
 
 			if tt.err == nil {
-				if ops := lib.ObjDiff(out, tt.out); ops != nil {
+				if ops := utils.ObjDiff(out, tt.out); ops != nil {
 					t.Errorf("%T.GetState(\"foo\"):\n%s", usecase, ops)
 				}
 			}
@@ -208,7 +209,7 @@ func (matcher driverModelMatcher) String() string {
 }
 
 func TestDriverSetState(t *testing.T) {
-	token := lib.Base32String(utils.NewToken(20))
+	token := lib.Base32String(lib.NewToken(20))
 
 	cases := []struct {
 		mock func(repository *repositories_mock.MockDriverRepository)
@@ -263,11 +264,11 @@ func TestDriverSetState(t *testing.T) {
 }
 
 func TestDriverGetStatus(t *testing.T) {
-	token := lib.Base32String(utils.NewToken(20))
+	token := lib.Base32String(lib.NewToken(20))
 
 	cases := []struct {
 		mock func(repository *repositories_mock.MockDriverRepository)
-		out  models.DriverStatus
+		out  driver.Status
 		err  error
 	}{
 		{
@@ -276,11 +277,11 @@ func TestDriverGetStatus(t *testing.T) {
 					Fetch("foo").
 					Return(models.DriverModel{
 						Name:   "foo",
-						Status: models.DriverIdle,
+						Status: driver.Idle,
 					}, nil).
 					Times(1)
 			},
-			out: models.DriverIdle,
+			out: driver.Idle,
 			err: nil,
 		},
 		{
@@ -290,7 +291,7 @@ func TestDriverGetStatus(t *testing.T) {
 					Return(models.DriverModel{}, lib.ErrNotFound).
 					Times(1)
 			},
-			out: models.DriverError,
+			out: driver.Error,
 			err: lib.ErrNotFound,
 		},
 	}
@@ -320,11 +321,11 @@ func TestDriverGetStatus(t *testing.T) {
 }
 
 func TestDriverSetStatus(t *testing.T) {
-	token := lib.Base32String(utils.NewToken(20))
+	token := lib.Base32String(lib.NewToken(20))
 
 	cases := []struct {
 		mock   func(repository *repositories_mock.MockDriverRepository)
-		status models.DriverStatus
+		status driver.Status
 		err    error
 	}{
 		{
@@ -333,18 +334,18 @@ func TestDriverSetStatus(t *testing.T) {
 					Fetch("foo").
 					Return(models.DriverModel{
 						Name:   "foo",
-						Status: models.DriverIdle,
+						Status: driver.Idle,
 					}, nil).
 					Times(1)
 				repository.EXPECT().
 					Update(DriverModelMatcher(models.DriverModel{
 						Name:   "foo",
-						Status: models.DriverBusy,
+						Status: driver.Busy,
 					})).
 					Return(nil).
 					Times(1)
 			},
-			status: models.DriverBusy,
+			status: driver.Busy,
 			err:    nil,
 		},
 		{
@@ -353,8 +354,8 @@ func TestDriverSetStatus(t *testing.T) {
 					Fetch("foo").
 					Return(models.DriverModel{
 						Name:   "foo",
-						Status: models.DriverBusy,
-						Op: &models.DriverOp{
+						Status: driver.Busy,
+						Op: &driver.Op{
 							Name: "op",
 							Arg:  "arg",
 						},
@@ -363,12 +364,12 @@ func TestDriverSetStatus(t *testing.T) {
 				repository.EXPECT().
 					Update(DriverModelMatcher(models.DriverModel{
 						Name:   "foo",
-						Status: models.DriverIdle,
+						Status: driver.Idle,
 					})).
 					Return(nil).
 					Times(1)
 			},
-			status: models.DriverIdle,
+			status: driver.Idle,
 			err:    nil,
 		},
 		{
@@ -378,7 +379,7 @@ func TestDriverSetStatus(t *testing.T) {
 					Return(models.DriverModel{}, lib.ErrNotFound).
 					Times(1)
 			},
-			status: models.DriverIdle,
+			status: driver.Idle,
 			err:    lib.ErrNotFound,
 		},
 	}
@@ -402,11 +403,11 @@ func TestDriverSetStatus(t *testing.T) {
 }
 
 func TestDriverGetOp(t *testing.T) {
-	token := lib.Base32String(utils.NewToken(20))
+	token := lib.Base32String(lib.NewToken(20))
 
 	cases := []struct {
 		mock func(repository *repositories_mock.MockDriverRepository)
-		op   *models.DriverOp
+		op   *driver.Op
 		err  error
 	}{
 		{
@@ -417,14 +418,14 @@ func TestDriverGetOp(t *testing.T) {
 						Name:  "foo",
 						Token: token,
 						State: "foo",
-						Op: &models.DriverOp{
+						Op: &driver.Op{
 							Name: "op",
 							Arg:  "arg",
 						},
 					}, nil).
 					Times(1)
 			},
-			op: &models.DriverOp{
+			op: &driver.Op{
 				Name: "op",
 				Arg:  "arg",
 			},
@@ -458,8 +459,8 @@ func TestDriverGetOp(t *testing.T) {
 			}
 
 			if tt.err == nil {
-				if ops := lib.ObjDiff(out, tt.op); ops != nil {
-					t.Error(lib.JoinOps(ops, "\n"))
+				if ops := utils.ObjDiff(out, tt.op); ops != nil {
+					t.Error(utils.JoinOps(ops, "\n"))
 				}
 			}
 		})
@@ -467,7 +468,7 @@ func TestDriverGetOp(t *testing.T) {
 }
 
 func TestDriverSetOp(t *testing.T) {
-	token := lib.Base32String(utils.NewToken(20))
+	token := lib.Base32String(lib.NewToken(20))
 
 	cases := []struct {
 		mock func(repository *repositories_mock.MockDriverRepository)
@@ -478,9 +479,11 @@ func TestDriverSetOp(t *testing.T) {
 				repository.EXPECT().
 					Fetch("foo").
 					Return(models.DriverModel{
-						Name:  "foo",
-						Token: token,
-						State: "foo",
+						Name:   "foo",
+						Token:  token,
+						State:  "foo",
+						Status: driver.Idle,
+						Op:     nil,
 					}, nil).
 					Times(1)
 				repository.EXPECT().
@@ -488,8 +491,8 @@ func TestDriverSetOp(t *testing.T) {
 						Name:   "foo",
 						Token:  token,
 						State:  "foo",
-						Status: models.DriverBusy,
-						Op: &models.DriverOp{
+						Status: driver.Busy,
+						Op: &driver.Op{
 							Name: "op",
 							Arg:  "arg",
 						},
@@ -508,6 +511,39 @@ func TestDriverSetOp(t *testing.T) {
 			},
 			err: lib.ErrNotFound,
 		},
+		{
+			mock: func(repository *repositories_mock.MockDriverRepository) {
+				repository.EXPECT().
+					Fetch("foo").
+					Return(models.DriverModel{
+						Name:   "foo",
+						Token:  token,
+						State:  "foo",
+						Status: driver.Busy,
+						Op:     nil,
+					}, nil).
+					Times(1)
+			},
+			err: lib.ErrAlreadyExists,
+		},
+		{
+			mock: func(repository *repositories_mock.MockDriverRepository) {
+				repository.EXPECT().
+					Fetch("foo").
+					Return(models.DriverModel{
+						Name:   "foo",
+						Token:  token,
+						State:  "foo",
+						Status: driver.Idle,
+						Op: &driver.Op{
+							Name: "op",
+							Arg:  "arg",
+						},
+					}, nil).
+					Times(1)
+			},
+			err: lib.ErrAlreadyExists,
+		},
 	}
 
 	for i, tt := range cases {
@@ -519,7 +555,7 @@ func TestDriverSetOp(t *testing.T) {
 			tt.mock(repository)
 
 			usecase := usecases.NewDriverUsecase(repository, func() string { return token })
-			err := usecase.SetOp("foo", models.DriverOp{
+			err := usecase.SetOp("foo", driver.Op{
 				Name: "op",
 				Arg:  "arg",
 			})
