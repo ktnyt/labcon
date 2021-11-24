@@ -40,3 +40,7 @@ func (driver Driver) Operation() (*driver.Op, error) {
 func (driver Driver) Dispatch(op driver.Op) error {
 	return driver.client.Dispatch(driver.name, op)
 }
+
+func (driver Driver) Disconnect() error {
+	return driver.client.Disconnect(driver.name, driver.token)
+}

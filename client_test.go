@@ -147,4 +147,17 @@ func TestClient(t *testing.T) {
 	if op != nil {
 		t.Fatalf("client op = %v, want nil", op)
 	}
+
+	if err := client.Disconnect("foo", token); err != nil {
+		t.Fatal(err)
+	}
+
+	names, err = client.List()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if ops := utils.ObjDiff(names, []string{}); ops != nil {
+		t.Fatal(utils.JoinOps(ops, "\n"))
+	}
 }

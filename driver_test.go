@@ -137,4 +137,8 @@ func TestDriver(t *testing.T) {
 	if op != nil {
 		t.Fatalf("client op = %v, want nil", op)
 	}
+
+	if err := d.Disconnect(); err != nil {
+		t.Fatal(err)
+	}
 }

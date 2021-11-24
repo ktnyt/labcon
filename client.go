@@ -232,3 +232,25 @@ func (client *Client) Dispatch(name string, op driver.Op) error {
 
 	return nil
 }
+
+func (client *Client) Disconnect(name, token string) error {
+	url := fmt.Sprintf("%s/driver/%s", client.Addr, name)
+	req, err := http.NewRequest(http.MethodDelete, url, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Add("X-Driver-Token", token)
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+
+	if res.StatusCode != http.StatusOK {
+		buf := bytes.Buffer{}
+		io.Copy(&buf, res.Body)
+		return errors.New(buf.String())
+	}
+
+	return nil
+}
