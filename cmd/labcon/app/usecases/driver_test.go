@@ -15,6 +15,60 @@ import (
 	"github.com/ktnyt/labcon/utils"
 )
 
+func TestDriverList(t *testing.T) {
+	token := lib.Base32String(lib.NewToken(20))
+
+	cases := []struct {
+		mock func(usecase *repositories_mock.MockDriverRepository)
+		out  []string
+		err  error
+	}{
+		{
+			mock: func(usecase *repositories_mock.MockDriverRepository) {
+				usecase.EXPECT().
+					List().
+					Return([]string{"bar", "foo"}, nil).
+					Times(1)
+			},
+			out: []string{"bar", "foo"},
+			err: nil,
+		},
+		{
+			mock: func(usecase *repositories_mock.MockDriverRepository) {
+				usecase.EXPECT().
+					List().
+					Return(nil, lib.ErrUnknown).
+					Times(1)
+			},
+			out: nil,
+			err: lib.ErrUnknown,
+		},
+	}
+
+	for i, tt := range cases {
+		lib.RunCase(t, i, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			repository := repositories_mock.NewMockDriverRepository(ctrl)
+			tt.mock(repository)
+
+			usecase := usecases.NewDriverUsecase(repository, func() string { return token })
+			out, err := usecase.List()
+
+			if !errors.Is(err, tt.err) {
+				t.Errorf("%T.List() = (_, %v): expecting (_, %v)", usecase, err, tt.err)
+			}
+
+			if err == nil {
+				if ops := utils.ObjDiff(out, tt.out); ops != nil {
+					t.Error(utils.JoinOps(ops, "\n"))
+				}
+			}
+		})
+	}
+}
+
 func TestDriverRegister(t *testing.T) {
 	token := lib.Base32String(lib.NewToken(20))
 
@@ -87,7 +141,7 @@ func TestDriverAuthorize(t *testing.T) {
 					}, nil).
 					Times(1)
 			},
-			err: lib.ErrUnauthorized,
+			err: lib.ErrForbidden,
 		},
 		{
 			mock: func(repository *repositories_mock.MockDriverRepository) {
@@ -396,7 +450,7 @@ func TestDriverSetStatus(t *testing.T) {
 			err := usecase.SetStatus("foo", tt.status)
 
 			if !errors.Is(err, tt.err) {
-				t.Errorf("%T.SetStatus(\"foo\", \"%v\") = %v: expected %v", usecase, tt.status, err, tt.err)
+				t.Errorf("%T.SetStatus(\"foo\", \"%v\"): %v, expected %v", usecase, tt.status, err, tt.err)
 			}
 		})
 	}
@@ -561,7 +615,61 @@ func TestDriverSetOp(t *testing.T) {
 			})
 
 			if !errors.Is(err, tt.err) {
-				t.Errorf("%T.SetOp(\"foo\", op) = %v: expected %v", usecase, err, tt.err)
+				t.Errorf("%T.SetOp(\"foo\", op): %v, expected %v", usecase, err, tt.err)
+			}
+		})
+	}
+}
+
+func TestDriverDelete(t *testing.T) {
+	token := lib.Base32String(lib.NewToken(20))
+
+	cases := []struct {
+		mock func(repository *repositories_mock.MockDriverRepository)
+		err  error
+	}{
+		{
+			mock: func(repository *repositories_mock.MockDriverRepository) {
+				repository.EXPECT().
+					Delete("foo").
+					Return(nil).
+					Times(1)
+			},
+			err: nil,
+		},
+		{
+			mock: func(repository *repositories_mock.MockDriverRepository) {
+				repository.EXPECT().
+					Delete("foo").
+					Return(lib.ErrNotFound).
+					Times(1)
+			},
+			err: lib.ErrNotFound,
+		},
+		{
+			mock: func(repository *repositories_mock.MockDriverRepository) {
+				repository.EXPECT().
+					Delete("foo").
+					Return(lib.ErrUnknown).
+					Times(1)
+			},
+			err: lib.ErrUnknown,
+		},
+	}
+
+	for i, tt := range cases {
+		lib.RunCase(t, i, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			repository := repositories_mock.NewMockDriverRepository(ctrl)
+			tt.mock(repository)
+
+			usecase := usecases.NewDriverUsecase(repository, func() string { return token })
+			err := usecase.Delete("foo")
+
+			if !errors.Is(err, tt.err) {
+				t.Errorf("%T.Delete(\"foo\"): %v, expected %v", usecase, err, tt.err)
 			}
 		})
 	}

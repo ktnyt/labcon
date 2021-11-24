@@ -48,6 +48,20 @@ func (mr *MockDriverUsecaseMockRecorder) Authorize(name, token interface{}) *gom
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Authorize", reflect.TypeOf((*MockDriverUsecase)(nil).Authorize), name, token)
 }
 
+// Delete mocks base method.
+func (m *MockDriverUsecase) Delete(name string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Delete", name)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Delete indicates an expected call of Delete.
+func (mr *MockDriverUsecaseMockRecorder) Delete(name interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockDriverUsecase)(nil).Delete), name)
+}
+
 // GetOp mocks base method.
 func (m *MockDriverUsecase) GetOp(name string) (*driver.Op, error) {
 	m.ctrl.T.Helper()
@@ -91,6 +105,21 @@ func (m *MockDriverUsecase) GetStatus(name string) (driver.Status, error) {
 func (mr *MockDriverUsecaseMockRecorder) GetStatus(name interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStatus", reflect.TypeOf((*MockDriverUsecase)(nil).GetStatus), name)
+}
+
+// List mocks base method.
+func (m *MockDriverUsecase) List() ([]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "List")
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// List indicates an expected call of List.
+func (mr *MockDriverUsecaseMockRecorder) List() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockDriverUsecase)(nil).List))
 }
 
 // Register mocks base method.

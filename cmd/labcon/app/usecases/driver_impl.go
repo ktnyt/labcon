@@ -18,6 +18,10 @@ func NewDriverUsecase(repository repositories.DriverRepository, generate func() 
 	}
 }
 
+func (usecase DriverUsecaseImpl) List() ([]string, error) {
+	return usecase.repository.List()
+}
+
 func (usecase DriverUsecaseImpl) Register(name string, state interface{}) (string, error) {
 	token := usecase.generate()
 	err := usecase.repository.Create(name, token, state)
@@ -30,7 +34,7 @@ func (usecase DriverUsecaseImpl) Authorize(name string, token string) error {
 		return err
 	}
 	if model.Token != token {
-		return lib.ErrUnauthorized
+		return lib.ErrForbidden
 	}
 	return nil
 }
@@ -86,4 +90,8 @@ func (usecase DriverUsecaseImpl) SetOp(name string, op driver.Op) error {
 	model.Status = driver.Busy
 	model.Op = &op
 	return usecase.repository.Update(model)
+}
+
+func (usecase DriverUsecaseImpl) Delete(name string) error {
+	return usecase.repository.Delete(name)
 }

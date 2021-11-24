@@ -50,6 +50,15 @@ func TestClient(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	names, err := client.List()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if ops := utils.ObjDiff(names, []string{"foo"}); ops != nil {
+		t.Fatal(utils.JoinOps(ops, "\n"))
+	}
+
 	var state string
 	if err := client.GetState("foo", &state); err != nil {
 		t.Fatal(err)

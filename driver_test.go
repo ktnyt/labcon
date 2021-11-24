@@ -43,7 +43,8 @@ func TestDriver(t *testing.T) {
 	server := httptest.NewServer(r)
 	defer server.Close()
 
-	d, err := NewDriver(server.URL, "foo", "foo")
+	client := NewClient(server.URL)
+	d, err := NewDriver(client, "foo", "foo")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 
@@ -18,6 +19,24 @@ func NewDriverRepository(db *badger.DB) DriverRepository {
 	return DriverRepositoryImpl{
 		db: db,
 	}
+}
+
+func (repo DriverRepositoryImpl) List() ([]string, error) {
+	names := []string{}
+	err := repo.db.View(func(txn *badger.Txn) error {
+		it := txn.NewIterator(badger.DefaultIteratorOptions)
+		defer it.Close()
+
+		prefix := []byte("driver/")
+		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
+			item := it.Item()
+			key := item.Key()
+			name := string(bytes.TrimPrefix(key, prefix))
+			names = append(names, name)
+		}
+		return nil
+	})
+	return names, err
 }
 
 func (repo DriverRepositoryImpl) Key(name string) []byte {

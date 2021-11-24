@@ -77,6 +77,21 @@ func (mr *MockDriverRepositoryMockRecorder) Fetch(name interface{}) *gomock.Call
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Fetch", reflect.TypeOf((*MockDriverRepository)(nil).Fetch), name)
 }
 
+// List mocks base method.
+func (m *MockDriverRepository) List() ([]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "List")
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// List indicates an expected call of List.
+func (mr *MockDriverRepositoryMockRecorder) List() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockDriverRepository)(nil).List))
+}
+
 // Update mocks base method.
 func (m *MockDriverRepository) Update(driver models.DriverModel) error {
 	m.ctrl.T.Helper()

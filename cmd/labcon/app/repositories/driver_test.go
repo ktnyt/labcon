@@ -50,11 +50,54 @@ func TestDriverCreate(t *testing.T) {
 		lib.RunCase(t, i, func(t *testing.T) {
 			err := repo.Create(tt.name, tt.token, tt.state)
 			if !errors.Is(err, tt.err) {
-				t.Errorf("%T.Create(%q, token, state) = %v: expected %v", repo, tt.name, err, tt.err)
+				t.Errorf("%T.Create(%q, token, state): %v, expected %v", repo, tt.name, err, tt.err)
 			}
 		})
 	}
 }
+
+func TestDriverList(t *testing.T) {
+	opts := badger.DefaultOptions("").WithInMemory(true).WithLogger(nil)
+	db, err := badger.Open(opts)
+	if err != nil {
+		t.Fatalf("failed to open test database: %v", err)
+	}
+	defer db.Close()
+	repo := repositories.NewDriverRepository(db)
+
+	token := lib.Base32String(lib.NewToken(20))
+	if err := repo.Create("foo", token, "foo"); err != nil {
+		t.Fatalf("failed to create driver in fixture: %v", err)
+	}
+	if err := repo.Create("bar", token, "bar"); err != nil {
+		t.Fatalf("failed to create driver in fixture: %v", err)
+	}
+
+	cases := []struct {
+		out []string
+		err error
+	}{
+		{
+			out: []string{"bar", "foo"},
+			err: nil,
+		},
+	}
+
+	for i, tt := range cases {
+		lib.RunCase(t, i, func(t *testing.T) {
+			out, err := repo.List()
+			if !errors.Is(err, tt.err) {
+				t.Errorf("%T.List() = (_, %v): expected (_, %v)", repo, err, tt.err)
+			}
+			if err == nil {
+				if ops := utils.ObjDiff(out, tt.out); ops != nil {
+					t.Error(utils.JoinOps(ops, "\n"))
+				}
+			}
+		})
+	}
+}
+
 func TestDriverFetch(t *testing.T) {
 	opts := badger.DefaultOptions("").WithInMemory(true).WithLogger(nil)
 	db, err := badger.Open(opts)
@@ -87,7 +130,7 @@ func TestDriverFetch(t *testing.T) {
 		lib.RunCase(t, i, func(t *testing.T) {
 			out, err := repo.Fetch(tt.out.Name)
 			if !errors.Is(err, tt.err) {
-				t.Errorf("%T.Fetch(%q) = _, %v: expected %v", repo, tt.out.Name, err, tt.err)
+				t.Errorf("%T.Fetch(%q) = (_, %v): expected (_, %v)", repo, tt.out.Name, err, tt.err)
 			}
 
 			if tt.err == nil {
@@ -133,7 +176,7 @@ func TestDriverUpdate(t *testing.T) {
 			}
 			model.State = tt.state
 			if err := repo.Update(model); !errors.Is(err, tt.err) {
-				t.Errorf("%T.Update(%q) = %v: expected %v", repo, tt.name, err, tt.err)
+				t.Errorf("%T.Update(%q): %v, expected %v", repo, tt.name, err, tt.err)
 			}
 
 			if tt.err == nil {
@@ -183,7 +226,7 @@ func TestDriverDelete(t *testing.T) {
 		lib.RunCase(t, i, func(t *testing.T) {
 			err := repo.Delete(tt.name)
 			if !errors.Is(err, tt.err) {
-				t.Errorf("%T.Delete(%q) = %v: expected %v", repo, tt.name, err, tt.err)
+				t.Errorf("%T.Delete(%q): %v, expected %v", repo, tt.name, err, tt.err)
 			}
 
 			if tt.err == nil {

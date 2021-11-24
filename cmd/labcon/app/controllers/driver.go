@@ -13,6 +13,7 @@ import (
 )
 
 type DriverController interface {
+	List(w http.ResponseWriter, r *http.Request)
 	Register(w http.ResponseWriter, r *http.Request)
 	GetState(w http.ResponseWriter, r *http.Request)
 	SetState(w http.ResponseWriter, r *http.Request)
@@ -20,6 +21,7 @@ type DriverController interface {
 	SetStatus(w http.ResponseWriter, r *http.Request)
 	Operation(w http.ResponseWriter, r *http.Request)
 	Dispatch(w http.ResponseWriter, r *http.Request)
+	Disconnect(w http.ResponseWriter, r *http.Request)
 }
 
 type DriverControllerImpl struct {
@@ -28,6 +30,23 @@ type DriverControllerImpl struct {
 
 func NewDriverController(inject func(context.Context) usecases.DriverUsecase) DriverController {
 	return DriverControllerImpl{inject: inject}
+}
+
+func (controller DriverControllerImpl) List(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	logger := lib.UseLogger(ctx)
+
+	// Dependency injection.
+	usecase := controller.inject(ctx)
+
+	list, err := usecase.List()
+	if err != nil {
+		logger.Err(err).Msgf("failed to list drivers")
+		lib.HTTPError(w, http.StatusInternalServerError)
+		return
+	}
+
+	lib.JsonResponse(w, ctx, list)
 }
 
 func (controller DriverControllerImpl) Register(w http.ResponseWriter, r *http.Request) {
@@ -105,20 +124,20 @@ func (controller DriverControllerImpl) SetState(w http.ResponseWriter, r *http.R
 
 	token := r.Header.Get("X-Driver-Token")
 	if token == "" {
-		http.Error(w, "missing X-Driver-Token header", http.StatusBadRequest)
+		http.Error(w, "missing X-Driver-Token header", http.StatusUnauthorized)
 		return
 	}
 
 	if err := usecase.Authorize(name, token); err != nil {
 		if errors.Is(err, lib.ErrNotFound) {
-			http.Error(w, fmt.Sprintf("failed to set state for driver %q: %v", name, err), http.StatusNotFound)
+			http.Error(w, fmt.Sprintf("failed to authorize driver %q in set state: %v", name, err), http.StatusNotFound)
 			return
 		}
-		if errors.Is(err, lib.ErrUnauthorized) {
-			http.Error(w, fmt.Sprintf("failed to set state for driver %q: %v", name, err), http.StatusUnauthorized)
+		if errors.Is(err, lib.ErrForbidden) {
+			http.Error(w, fmt.Sprintf("failed to authorize driver %q in set state: %v", name, err), http.StatusForbidden)
 			return
 		}
-		logger.Err(err).Msgf("failed to set state for driver %q", name)
+		logger.Err(err).Msgf("failed to authorize driver %q in set state", name)
 		lib.HTTPError(w, http.StatusInternalServerError)
 		return
 	}
@@ -185,20 +204,20 @@ func (controller DriverControllerImpl) SetStatus(w http.ResponseWriter, r *http.
 
 	token := r.Header.Get("X-Driver-Token")
 	if token == "" {
-		http.Error(w, "missing X-Driver-Token header", http.StatusBadRequest)
+		http.Error(w, "missing X-Driver-Token header", http.StatusUnauthorized)
 		return
 	}
 
 	if err := usecase.Authorize(name, token); err != nil {
 		if errors.Is(err, lib.ErrNotFound) {
-			http.Error(w, fmt.Sprintf("failed to set status for driver %q: %v", name, err), http.StatusNotFound)
+			http.Error(w, fmt.Sprintf("failed to authorize driver %q in set status: %v", name, err), http.StatusNotFound)
 			return
 		}
-		if errors.Is(err, lib.ErrUnauthorized) {
-			http.Error(w, fmt.Sprintf("failed to set status for driver %q: %v", name, err), http.StatusUnauthorized)
+		if errors.Is(err, lib.ErrForbidden) {
+			http.Error(w, fmt.Sprintf("failed to authorize driver %q in set status: %v", name, err), http.StatusForbidden)
 			return
 		}
-		logger.Err(err).Msgf("failed to set status for driver %q", name)
+		logger.Err(err).Msgf("failed to authorize driver %q in set status", name)
 		lib.HTTPError(w, http.StatusInternalServerError)
 		return
 	}
@@ -238,20 +257,20 @@ func (controller DriverControllerImpl) Operation(w http.ResponseWriter, r *http.
 
 	token := r.Header.Get("X-Driver-Token")
 	if token == "" {
-		http.Error(w, "missing X-Driver-Token header", http.StatusBadRequest)
+		http.Error(w, "missing X-Driver-Token header", http.StatusUnauthorized)
 		return
 	}
 
 	if err := usecase.Authorize(name, token); err != nil {
 		if errors.Is(err, lib.ErrNotFound) {
-			http.Error(w, fmt.Sprintf("failed to get operation for driver %q: %v", name, err), http.StatusNotFound)
+			http.Error(w, fmt.Sprintf("failed to authorize driver %q in get operation: %v", name, err), http.StatusNotFound)
 			return
 		}
-		if errors.Is(err, lib.ErrUnauthorized) {
-			http.Error(w, fmt.Sprintf("failed to get operation for driver %q: %v", name, err), http.StatusUnauthorized)
+		if errors.Is(err, lib.ErrForbidden) {
+			http.Error(w, fmt.Sprintf("failed to authorize driver %q in get operation: %v", name, err), http.StatusForbidden)
 			return
 		}
-		logger.Err(err).Msgf("failed to get operation for driver %q", name)
+		logger.Err(err).Msgf("failed to authorize driver %q in get operation", name)
 		lib.HTTPError(w, http.StatusInternalServerError)
 		return
 	}
@@ -301,6 +320,53 @@ func (controller DriverControllerImpl) Dispatch(w http.ResponseWriter, r *http.R
 			return
 		}
 		logger.Err(err).Msgf("failed to dispatch for driver %q", name)
+		lib.HTTPError(w, http.StatusInternalServerError)
+		return
+	}
+
+	lib.HTTPError(w, http.StatusOK)
+}
+
+func (controller DriverControllerImpl) Disconnect(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	logger := lib.UseLogger(ctx)
+
+	// Dependency injection.
+	usecase := controller.inject(ctx)
+
+	name := chi.URLParam(r, "name")
+	if name == "" {
+		http.Error(w, "missing URL parameter \"name\"", http.StatusBadRequest)
+		return
+	}
+
+	token := r.Header.Get("X-Driver-Token")
+	if token == "" {
+		http.Error(w, "missing X-Driver-Token header", http.StatusUnauthorized)
+		return
+	}
+
+	if err := usecase.Authorize(name, token); err != nil {
+		if errors.Is(err, lib.ErrNotFound) {
+			http.Error(w, fmt.Sprintf("failed to authorize driver %q in disconnect: %v", name, err), http.StatusNotFound)
+			return
+		}
+		if errors.Is(err, lib.ErrForbidden) {
+			http.Error(w, fmt.Sprintf("failed to authorize driver %q in disconnect: %v", name, err), http.StatusForbidden)
+			return
+		}
+		logger.Err(err).Msgf("failed to authorize driver %q in disconnect", name)
+		lib.HTTPError(w, http.StatusInternalServerError)
+		return
+	}
+
+	err := usecase.Delete(name)
+	if err != nil {
+		if errors.Is(err, lib.ErrNotFound) {
+			http.Error(w, fmt.Sprintf("failed to disconnect driver %q: %v", name, err), http.StatusNotFound)
+			return
+		}
+		logger.Err(err).Msgf("failed to disconnect driver %q", name)
 		lib.HTTPError(w, http.StatusInternalServerError)
 		return
 	}

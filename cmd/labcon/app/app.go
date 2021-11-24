@@ -20,6 +20,7 @@ func NewApp(injectDriver injectors.DriverInjector) App {
 func (a App) Setup(r chi.Router) {
 	r.Get("/", views.EmptyView)
 	r.Route("/driver", func(r chi.Router) {
+		r.Get("/", a.driver.List)
 		r.Post("/", a.driver.Register)
 		r.Route("/{name}", func(r chi.Router) {
 			r.Route("/state", func(r chi.Router) {
@@ -34,6 +35,7 @@ func (a App) Setup(r chi.Router) {
 				r.Get("/", a.driver.Operation)
 				r.Post("/", a.driver.Dispatch)
 			})
+			r.Delete("/", a.driver.Disconnect)
 		})
 	})
 }

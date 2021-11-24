@@ -37,7 +37,7 @@ func main() {
 		AllowCredentials: true,
 	}
 
-	opts := badger.DefaultOptions("labcon.db").WithLogger(lib.Adaptor(logger))
+	opts := badger.DefaultOptions("").WithInMemory(true).WithLogger(lib.Adaptor(logger))
 	db, err := badger.Open(opts)
 	if err != nil {
 		logger.Err(err).Msg("failed to open database")

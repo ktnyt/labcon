@@ -22,6 +22,87 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+func TestDriverList(t *testing.T) {
+	cases := []struct {
+		label string
+		mock  func(usecase *usecases_mock.MockDriverUsecase)
+		setup func() *http.Request
+		code  int
+		out   io.Reader
+	}{
+		{
+			label: "success",
+			mock: func(usecase *usecases_mock.MockDriverUsecase) {
+				usecase.EXPECT().
+					List().
+					Return([]string{"foo", "bar"}, nil).
+					Times(1)
+			},
+			setup: func() *http.Request {
+				return httptest.NewRequest(http.MethodGet, "/driver", nil)
+			},
+			code: http.StatusOK,
+			out:  lib.MustJsonMarshalToBuffer(t, []string{"foo", "bar"}),
+		},
+
+		{
+			label: "internal error",
+			mock: func(usecase *usecases_mock.MockDriverUsecase) {
+				usecase.EXPECT().
+					List().
+					Return(nil, lib.ErrUnknown).
+					Times(1)
+			},
+			setup: func() *http.Request {
+				return httptest.NewRequest(http.MethodGet, "/driver", nil)
+			},
+			code: http.StatusInternalServerError,
+			out:  bytes.NewBufferString("Internal Server Error\n"),
+		},
+	}
+
+	for _, tt := range cases {
+		lib.RunCase(t, tt.label, func(t *testing.T) {
+			failed := false
+
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			usecase := usecases_mock.NewMockDriverUsecase(ctrl)
+			inject := func(context.Context) usecases.DriverUsecase { return usecase }
+			controller := controllers.NewDriverController(inject)
+
+			tt.mock(usecase)
+
+			w := httptest.NewRecorder()
+			r := tt.setup()
+
+			b := &strings.Builder{}
+			logout := zerolog.ConsoleWriter{Out: b, TimeFormat: time.RFC3339}
+			logger := log.Output(logout).Level(zerolog.TraceLevel)
+
+			ctx := r.Context()
+			ctx = logger.WithContext(ctx)
+
+			controller.List(w, r.WithContext(ctx))
+
+			if w.Code != tt.code {
+				t.Errorf("%s %s got %d: expected %d", r.Method, r.RequestURI, w.Code, tt.code)
+				failed = true
+			}
+
+			if ops := utils.ReaderDiff(w.Body, tt.out); ops != nil {
+				t.Errorf("%s %s response body:\n%s", r.Method, r.RequestURI, utils.JoinOps(ops, "\n"))
+				failed = true
+			}
+
+			if failed {
+				t.Errorf("log output:\n%s", b.String())
+			}
+		})
+	}
+}
+
 func TestDriverRegister(t *testing.T) {
 	token := lib.Base32String(lib.NewToken(20))
 
@@ -358,7 +439,7 @@ func TestDriverSetState(t *testing.T) {
 				ctx := context.WithValue(r.Context(), chi.RouteCtxKey, rctx)
 				return r.WithContext(ctx)
 			},
-			code: http.StatusBadRequest,
+			code: http.StatusUnauthorized,
 			out:  bytes.NewBufferString("missing X-Driver-Token header\n"),
 		},
 
@@ -380,15 +461,15 @@ func TestDriverSetState(t *testing.T) {
 				return r.WithContext(ctx)
 			},
 			code: http.StatusNotFound,
-			out:  bytes.NewBufferString("failed to set state for driver \"foo\": not found\n"),
+			out:  bytes.NewBufferString("failed to authorize driver \"foo\" in set state: not found\n"),
 		},
 
 		{
-			label: "unauthorized",
+			label: "forbidden",
 			mock: func(usecase *usecases_mock.MockDriverUsecase) {
 				usecase.EXPECT().
 					Authorize("foo", "foo").
-					Return(lib.ErrUnauthorized).
+					Return(lib.ErrForbidden).
 					Times(1)
 			},
 			setup: func() *http.Request {
@@ -400,8 +481,8 @@ func TestDriverSetState(t *testing.T) {
 				ctx := context.WithValue(r.Context(), chi.RouteCtxKey, rctx)
 				return r.WithContext(ctx)
 			},
-			code: http.StatusUnauthorized,
-			out:  bytes.NewBufferString("failed to set state for driver \"foo\": unauthorized\n"),
+			code: http.StatusForbidden,
+			out:  bytes.NewBufferString("failed to authorize driver \"foo\" in set state: forbidden\n"),
 		},
 
 		{
@@ -720,7 +801,7 @@ func TestDriverSetStatus(t *testing.T) {
 				ctx := context.WithValue(r.Context(), chi.RouteCtxKey, rctx)
 				return r.WithContext(ctx)
 			},
-			code: http.StatusBadRequest,
+			code: http.StatusUnauthorized,
 			out:  bytes.NewBufferString("missing X-Driver-Token header\n"),
 		},
 
@@ -742,15 +823,15 @@ func TestDriverSetStatus(t *testing.T) {
 				return r.WithContext(ctx)
 			},
 			code: http.StatusNotFound,
-			out:  bytes.NewBufferString("failed to set status for driver \"foo\": not found\n"),
+			out:  bytes.NewBufferString("failed to authorize driver \"foo\" in set status: not found\n"),
 		},
 
 		{
-			label: "unauthorized",
+			label: "forbidden",
 			mock: func(usecase *usecases_mock.MockDriverUsecase) {
 				usecase.EXPECT().
 					Authorize("foo", "foo").
-					Return(lib.ErrUnauthorized).
+					Return(lib.ErrForbidden).
 					Times(1)
 			},
 			setup: func() *http.Request {
@@ -762,8 +843,8 @@ func TestDriverSetStatus(t *testing.T) {
 				ctx := context.WithValue(r.Context(), chi.RouteCtxKey, rctx)
 				return r.WithContext(ctx)
 			},
-			code: http.StatusUnauthorized,
-			out:  bytes.NewBufferString("failed to set status for driver \"foo\": unauthorized\n"),
+			code: http.StatusForbidden,
+			out:  bytes.NewBufferString("failed to authorize driver \"foo\" in set status: forbidden\n"),
 		},
 
 		{
@@ -961,7 +1042,7 @@ func TestDriverOperation(t *testing.T) {
 				ctx := context.WithValue(r.Context(), chi.RouteCtxKey, rctx)
 				return r.WithContext(ctx)
 			},
-			code: http.StatusBadRequest,
+			code: http.StatusUnauthorized,
 			out:  bytes.NewBufferString("missing X-Driver-Token header\n"),
 		},
 
@@ -982,15 +1063,15 @@ func TestDriverOperation(t *testing.T) {
 				return r.WithContext(ctx)
 			},
 			code: http.StatusNotFound,
-			out:  bytes.NewBufferString("failed to get operation for driver \"foo\": not found\n"),
+			out:  bytes.NewBufferString("failed to authorize driver \"foo\" in get operation: not found\n"),
 		},
 
 		{
-			label: "unauthorized",
+			label: "forbidden",
 			mock: func(usecase *usecases_mock.MockDriverUsecase) {
 				usecase.EXPECT().
 					Authorize("foo", "foo").
-					Return(lib.ErrUnauthorized).
+					Return(lib.ErrForbidden).
 					Times(1)
 			},
 			setup: func() *http.Request {
@@ -1001,8 +1082,8 @@ func TestDriverOperation(t *testing.T) {
 				ctx := context.WithValue(r.Context(), chi.RouteCtxKey, rctx)
 				return r.WithContext(ctx)
 			},
-			code: http.StatusUnauthorized,
-			out:  bytes.NewBufferString("failed to get operation for driver \"foo\": unauthorized\n"),
+			code: http.StatusForbidden,
+			out:  bytes.NewBufferString("failed to authorize driver \"foo\" in get operation: forbidden\n"),
 		},
 
 		{
@@ -1283,6 +1364,216 @@ func TestDriverDispatch(t *testing.T) {
 			ctx = logger.WithContext(ctx)
 
 			controller.Dispatch(w, r.WithContext(ctx))
+
+			if w.Code != tt.code {
+				t.Errorf("%s %s got %d: expected %d", r.Method, r.RequestURI, w.Code, tt.code)
+				failed = true
+			}
+
+			if ops := utils.ReaderDiff(w.Body, tt.out); ops != nil {
+				t.Errorf("%s %s response body:\n%s", r.Method, r.RequestURI, utils.JoinOps(ops, "\n"))
+				failed = true
+			}
+
+			if failed {
+				t.Errorf("log output:\n%s", b.String())
+			}
+		})
+	}
+}
+func TestDriverDisconnect(t *testing.T) {
+	cases := []struct {
+		label string
+		mock  func(usecase *usecases_mock.MockDriverUsecase)
+		setup func() *http.Request
+		code  int
+		out   io.Reader
+	}{
+		{
+			label: "success",
+			mock: func(usecase *usecases_mock.MockDriverUsecase) {
+				usecase.EXPECT().
+					Authorize("foo", "foo").
+					Return(nil).
+					Times(1)
+				usecase.EXPECT().
+					Delete("foo").
+					Return(nil).
+					Times(1)
+			},
+			setup: func() *http.Request {
+				rctx := chi.NewRouteContext()
+				rctx.URLParams.Add("name", "foo")
+				r := httptest.NewRequest(http.MethodDelete, "/driver/foo", nil)
+				r.Header.Set("X-Driver-Token", "foo")
+				ctx := context.WithValue(r.Context(), chi.RouteCtxKey, rctx)
+				return r.WithContext(ctx)
+			},
+			code: http.StatusOK,
+			out:  bytes.NewBufferString("OK\n"),
+		},
+
+		{
+			label: "missing URL parameter",
+			mock:  func(usecase *usecases_mock.MockDriverUsecase) {},
+			setup: func() *http.Request {
+				rctx := chi.NewRouteContext()
+				r := httptest.NewRequest(http.MethodDelete, "/driver/foo", nil)
+				r.Header.Set("X-Driver-Token", "foo")
+				ctx := context.WithValue(r.Context(), chi.RouteCtxKey, rctx)
+				return r.WithContext(ctx)
+			},
+			code: http.StatusBadRequest,
+			out:  bytes.NewBufferString("missing URL parameter \"name\"\n"),
+		},
+
+		{
+			label: "missing X-Driver-Token header",
+			mock:  func(usecase *usecases_mock.MockDriverUsecase) {},
+			setup: func() *http.Request {
+				rctx := chi.NewRouteContext()
+				rctx.URLParams.Add("name", "foo")
+				r := httptest.NewRequest(http.MethodDelete, "/driver/foo", nil)
+				ctx := context.WithValue(r.Context(), chi.RouteCtxKey, rctx)
+				return r.WithContext(ctx)
+			},
+			code: http.StatusUnauthorized,
+			out:  bytes.NewBufferString("missing X-Driver-Token header\n"),
+		},
+
+		{
+			label: "token not found",
+			mock: func(usecase *usecases_mock.MockDriverUsecase) {
+				usecase.EXPECT().
+					Authorize("foo", "foo").
+					Return(lib.ErrNotFound).
+					Times(1)
+			},
+			setup: func() *http.Request {
+				rctx := chi.NewRouteContext()
+				rctx.URLParams.Add("name", "foo")
+				r := httptest.NewRequest(http.MethodDelete, "/driver/foo", nil)
+				r.Header.Set("X-Driver-Token", "foo")
+				ctx := context.WithValue(r.Context(), chi.RouteCtxKey, rctx)
+				return r.WithContext(ctx)
+			},
+			code: http.StatusNotFound,
+			out:  bytes.NewBufferString("failed to authorize driver \"foo\" in disconnect: not found\n"),
+		},
+
+		{
+			label: "forbidden",
+			mock: func(usecase *usecases_mock.MockDriverUsecase) {
+				usecase.EXPECT().
+					Authorize("foo", "foo").
+					Return(lib.ErrForbidden).
+					Times(1)
+			},
+			setup: func() *http.Request {
+				rctx := chi.NewRouteContext()
+				rctx.URLParams.Add("name", "foo")
+				r := httptest.NewRequest(http.MethodDelete, "/driver/foo", nil)
+				r.Header.Set("X-Driver-Token", "foo")
+				ctx := context.WithValue(r.Context(), chi.RouteCtxKey, rctx)
+				return r.WithContext(ctx)
+			},
+			code: http.StatusForbidden,
+			out:  bytes.NewBufferString("failed to authorize driver \"foo\" in disconnect: forbidden\n"),
+		},
+
+		{
+			label: "internal authorization error",
+			mock: func(usecase *usecases_mock.MockDriverUsecase) {
+				usecase.EXPECT().
+					Authorize("foo", "foo").
+					Return(lib.ErrUnknown).
+					Times(1)
+			},
+			setup: func() *http.Request {
+				rctx := chi.NewRouteContext()
+				rctx.URLParams.Add("name", "foo")
+				r := httptest.NewRequest(http.MethodDelete, "/driver/foo", nil)
+				r.Header.Set("X-Driver-Token", "foo")
+				ctx := context.WithValue(r.Context(), chi.RouteCtxKey, rctx)
+				return r.WithContext(ctx)
+			},
+			code: http.StatusInternalServerError,
+			out:  bytes.NewBufferString("Internal Server Error\n"),
+		},
+
+		{
+			label: "not found",
+			mock: func(usecase *usecases_mock.MockDriverUsecase) {
+				usecase.EXPECT().
+					Authorize("foo", "foo").
+					Return(nil).
+					Times(1)
+				usecase.EXPECT().
+					Delete("foo").
+					Return(lib.ErrNotFound).
+					Times(1)
+			},
+			setup: func() *http.Request {
+				rctx := chi.NewRouteContext()
+				rctx.URLParams.Add("name", "foo")
+				r := httptest.NewRequest(http.MethodDelete, "/driver/foo", nil)
+				r.Header.Set("X-Driver-Token", "foo")
+				ctx := context.WithValue(r.Context(), chi.RouteCtxKey, rctx)
+				return r.WithContext(ctx)
+			},
+			code: http.StatusNotFound,
+			out:  bytes.NewBufferString("failed to disconnect driver \"foo\": not found\n"),
+		},
+
+		{
+			label: "internal server error",
+			mock: func(usecase *usecases_mock.MockDriverUsecase) {
+				usecase.EXPECT().
+					Authorize("foo", "foo").
+					Return(nil).
+					Times(1)
+				usecase.EXPECT().
+					Delete("foo").
+					Return(lib.ErrUnknown).
+					Times(1)
+			},
+			setup: func() *http.Request {
+				rctx := chi.NewRouteContext()
+				rctx.URLParams.Add("name", "foo")
+				r := httptest.NewRequest(http.MethodDelete, "/driver/foo", nil)
+				r.Header.Set("X-Driver-Token", "foo")
+				ctx := context.WithValue(r.Context(), chi.RouteCtxKey, rctx)
+				return r.WithContext(ctx)
+			},
+			code: http.StatusInternalServerError,
+			out:  bytes.NewBufferString("Internal Server Error\n"),
+		},
+	}
+
+	for _, tt := range cases {
+		lib.RunCase(t, tt.label, func(t *testing.T) {
+			failed := false
+
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			usecase := usecases_mock.NewMockDriverUsecase(ctrl)
+			inject := func(context.Context) usecases.DriverUsecase { return usecase }
+			controller := controllers.NewDriverController(inject)
+
+			tt.mock(usecase)
+
+			w := httptest.NewRecorder()
+			r := tt.setup()
+
+			b := &strings.Builder{}
+			logout := zerolog.ConsoleWriter{Out: b, TimeFormat: time.RFC3339}
+			logger := log.Output(logout).Level(zerolog.TraceLevel)
+
+			ctx := r.Context()
+			ctx = logger.WithContext(ctx)
+
+			controller.Disconnect(w, r.WithContext(ctx))
 
 			if w.Code != tt.code {
 				t.Errorf("%s %s got %d: expected %d", r.Method, r.RequestURI, w.Code, tt.code)

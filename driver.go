@@ -8,8 +8,7 @@ type Driver struct {
 	token  string
 }
 
-func NewDriver(addr string, name string, state interface{}) (Driver, error) {
-	client := NewClient(addr)
+func NewDriver(client *Client, name string, state interface{}) (Driver, error) {
 	token, err := client.Register(name, state)
 	return Driver{
 		client: client,

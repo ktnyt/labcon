@@ -88,6 +88,14 @@ func TestIntegration(t *testing.T) {
 
 		{
 			setup: func() *http.Request {
+				return newRequest(t, http.MethodGet, "/driver", nil)
+			},
+			code: http.StatusOK,
+			out:  lib.MustJsonMarshalToBuffer(t, []string{"foo"}),
+		},
+
+		{
+			setup: func() *http.Request {
 				return newRequest(t, http.MethodGet, "/driver/foo/state", nil)
 			},
 			code: http.StatusOK,
@@ -193,6 +201,16 @@ func TestIntegration(t *testing.T) {
 			},
 			code: http.StatusOK,
 			out:  lib.MustJsonMarshalToBuffer(t, nil),
+		},
+
+		{
+			setup: func() *http.Request {
+				req := newRequest(t, http.MethodDelete, "/driver/foo", nil)
+				req.Header.Add("X-Driver-Token", token)
+				return req
+			},
+			code: http.StatusOK,
+			out:  bytes.NewBufferString("OK\n"),
 		},
 	}
 

@@ -20,6 +20,30 @@ func NewClient(addr string) *Client {
 	return &Client{Addr: addr}
 }
 
+func (client *Client) List() ([]string, error) {
+	url := fmt.Sprintf("%s/driver", client.Addr)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	buf := bytes.Buffer{}
+	io.Copy(&buf, res.Body)
+
+	if res.StatusCode != http.StatusOK {
+		return nil, errors.New(buf.String())
+	}
+
+	var names []string
+	err = json.Unmarshal(buf.Bytes(), &names)
+	return names, err
+}
+
 func (client *Client) Register(name string, state interface{}) (string, error) {
 	params := driver.RegisterParams{
 		Name:  name,
